@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: lifesim-3d-server
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    envVars:
+      - key: PORT
+        value: 8765
+      - key: HEALTH_PORT
+        value: 8080
+    healthCheckPath: /
+    autoDeploy: true

@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>LifeSim 3D</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;overflow:hidden;font-family:'Segoe UI',sans-serif;color:#fff;}
+#c{display:block;width:100vw;height:100vh;}
+#hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;}
+#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;}
+#crosshair::before,#crosshair::after{content:'';position:absolute;background:rgba(255,255,255,.85);}
+#crosshair::before{width:2px;height:20px;left:9px;top:0;}
+#crosshair::after{width:20px;height:2px;top:9px;left:0;}
+#money{position:absolute;top:14px;right:18px;background:rgba(0,0,0,.6);padding:6px 14px;border-radius:8px;font-size:15px;}
+#status{position:absolute;bottom:58px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);padding:6px 22px;border-radius:10px;font-size:14px;display:none;pointer-events:none;}
+#prompt{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);background:rgba(30,30,80,.85);padding:5px 20px;border-radius:8px;font-size:13px;display:none;pointer-events:none;}
+#minimap{position:absolute;bottom:14px;right:14px;width:130px;height:130px;background:rgba(0,0,0,.5);border:1px solid #555;border-radius:6px;pointer-events:none;}
+#cammode{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);padding:4px 14px;border-radius:8px;font-size:12px;}
+#keyhint{position:absolute;top:44px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.4);padding:3px 12px;border-radius:6px;font-size:11px;color:#aaa;}
+#players-hud{position:absolute;top:14px;left:14px;background:rgba(0,0,0,.55);padding:6px 12px;border-radius:8px;font-size:12px;min-width:120px;}
+.panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a2e;border:1px solid #444;border-radius:14px;padding:24px 28px;z-index:100;min-width:360px;max-width:580px;max-height:90vh;overflow-y:auto;display:none;}
+.panel h2{text-align:center;margin-bottom:14px;color:#a8d8ff;font-size:19px;}
+.panel label{display:block;margin:8px 0 3px;font-size:13px;color:#ccc;}
+.panel select,.panel input[type=text],.panel input[type=range]{width:100%;padding:7px 10px;background:#0d0d1a;border:1px solid #555;border-radius:7px;color:#fff;font-size:13px;}
+.panel input[type=range]{padding:4px 0;}
+.btn{background:linear-gradient(135deg,#4a90d9,#2563eb);color:#fff;border:none;border-radius:8px;padding:9px 22px;cursor:pointer;font-size:14px;margin-top:8px;width:100%;}
+.btn:hover{opacity:.88;}
+.btn-sm{background:#223;color:#adf;border:1px solid #445;border-radius:6px;padding:6px 13px;cursor:pointer;font-size:12px;margin:3px 2px;}
+.btn-sm.active{background:#2255aa;border-color:#5599ff;color:#fff;}
+.cloth-row{display:flex;align-items:center;padding:9px 4px;border-bottom:1px solid #222;gap:8px;}
+.cloth-row span{font-size:13px;color:#ddd;flex:1;}
+.cloth-row .tog{background:#334;border:1px solid #556;color:#adf;border-radius:5px;padding:4px 12px;cursor:pointer;font-size:12px;min-width:52px;text-align:center;}
+.cloth-row .tog.on{background:#1a3a6a;border-color:#4488cc;color:#fff;}
+.cloth-row input[type=color]{width:34px;height:28px;border:none;border-radius:5px;cursor:pointer;padding:0;background:none;}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:200;display:flex;align-items:center;justify-content:center;}
+#overlay-box{background:#12121f;border:1px solid #334;border-radius:18px;padding:36px 38px;max-width:540px;width:95%;text-align:center;max-height:94vh;overflow-y:auto;}
+#overlay-box h1{font-size:27px;color:#a8d8ff;margin-bottom:4px;}
+#overlay-box p{color:#888;font-size:13px;margin-bottom:16px;}
+.menu-tab{display:inline-block;padding:7px 20px;background:#1e1e3a;border:1px solid #444;border-radius:8px 8px 0 0;cursor:pointer;font-size:13px;margin-right:4px;}
+.menu-tab.active{background:#2a2a50;border-bottom-color:#2a2a50;color:#a8d8ff;}
+.tab-content{background:#1a1a30;border:1px solid #444;border-radius:0 8px 8px 8px;padding:18px;margin-bottom:14px;text-align:left;}
+.ov-label{display:block;color:#ccc;font-size:13px;margin:8px 0 3px;}
+.ov-input{width:100%;padding:9px;background:#0d0d1a;border:1px solid #555;border-radius:8px;color:#fff;font-size:13px;margin-bottom:6px;}
+.skin-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.15s;display:inline-block;}
+.skin-swatch:hover,.skin-swatch.sel{border-color:#fff;transform:scale(1.15);}
+#dialogue{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);background:rgba(8,8,28,.93);border:1px solid #445;border-radius:12px;padding:14px 22px;width:440px;display:none;z-index:50;}
+#dialogue .npc-name{color:#7cf;font-size:13px;margin-bottom:4px;}
+#dialogue .npc-text{font-size:14px;color:#eee;line-height:1.5;}
+#dialogue .close-btn{position:absolute;top:6px;right:10px;background:none;border:none;color:#888;cursor:pointer;font-size:16px;}
+#chat-box{position:fixed;bottom:90px;right:14px;width:270px;background:rgba(10,10,30,.9);border:1px solid #445;border-radius:10px;display:none;flex-direction:column;z-index:50;}
+#chat-msgs{height:150px;overflow-y:auto;padding:8px;font-size:12px;color:#ddd;}
+#chat-input-row{display:flex;padding:6px;}
+#chat-input{flex:1;background:#0d0d1a;border:1px solid #555;border-radius:5px;color:#fff;font-size:12px;padding:4px 7px;}
+#chat-send{background:#2255aa;border:none;color:#fff;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:12px;margin-left:4px;}
+.sep{border:none;border-top:1px solid #333;margin:10px 0;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="money">💰 ∞ Infinity</div>
+  <div id="cammode">📷 3rd Person</div>
+  <div id="keyhint">/ = Menu | E = Wardrobe | F = Talk | C = Car | ] = Lock Mouse | T = Chat | 1/2/3 = Camera</div>
+  <div id="status"></div>
+  <div id="prompt"></div>
+  <div id="players-hud">👥 <span id="player-count">1</span> Online<br/><div id="player-list" style="font-size:11px;color:#aaa;margin-top:2px;"></div></div>
+  <div id="minimap"><canvas id="mm" width="130" height="130"></canvas></div>
+</div>
+<div id="chat-box">
+  <div id="chat-msgs"></div>
+  <div id="chat-input-row">
+    <input id="chat-input" type="text" placeholder="Message…" maxlength="80"/>
+    <button id="chat-send">➤</button>
+  </div>
+</div>
+<div id="dialogue">
+  <button class="close-btn" onclick="closeDialogue()">✕</button>
+  <div class="npc-name" id="dlg-name"></div>
+  <div class="npc-text" id="dlg-text"></div>
+</div>
+
+<!-- MAIN MENU -->
+<div id="overlay">
+<div id="overlay-box">
+  <h1>🌍 LifeSim 3D</h1>
+  <p>Create your character and start living!</p>
+  <div style="display:flex;margin-bottom:0;justify-content:center;">
+    <div class="menu-tab active" id="tab-char" onclick="switchTab('char')">👤 Character</div>
+    <div class="menu-tab" id="tab-multi" onclick="switchTab('multi')">🌐 Multiplayer</div>
+  </div>
+  <div class="tab-content" id="tc-char">
+    <label class="ov-label">Your Name</label>
+    <input class="ov-input" id="p-name" type="text" placeholder="Enter your name…"/>
+    <label class="ov-label">Gender</label>
+    <select class="ov-input" id="p-gender" onchange="updateGenderUI()">
+      <option value="female">Female</option>
+      <option value="male">Male</option>
+    </select>
+    <label class="ov-label">House Type</label>
+    <select class="ov-input" id="p-house">
+      <option value="normal">Normal House</option>
+      <option value="apartment">Apartment</option>
+      <option value="villa">Villa</option>
+      <option value="mansion">Mansion</option>
+    </select>
+    <label class="ov-label">Skin Tone</label>
+    <div style="display:flex;gap:8px;margin-bottom:10px;" id="skin-row">
+      <div class="skin-swatch" data-c="#FDDBB4" style="background:#FDDBB4;"></div>
+      <div class="skin-swatch sel" data-c="#F1C27D" style="background:#F1C27D;"></div>
+      <div class="skin-swatch" data-c="#C68642" style="background:#C68642;"></div>
+      <div class="skin-swatch" data-c="#8D5524" style="background:#8D5524;"></div>
+      <div class="skin-swatch" data-c="#4A2912" style="background:#4A2912;"></div>
+    </div>
+    <label class="ov-label">Hair Color</label>
+    <input type="color" id="p-hair" value="#3b1e08" style="width:50px;height:32px;margin-bottom:10px;border-radius:6px;border:none;cursor:pointer;"/>
+    <div id="bust-row">
+      <label class="ov-label">Bust Size <span id="bust-lbl">3</span>/5</label>
+      <input type="range" id="p-bust" min="1" max="5" value="3" oninput="document.getElementById('bust-lbl').textContent=this.value" style="margin-bottom:10px;"/>
+    </div>
+    <label class="ov-label">Body Type</label>
+    <select class="ov-input" id="p-body">
+      <option value="slim">Slim</option>
+      <option value="normal" selected>Normal</option>
+      <option value="curvy">Curvy</option>
+    </select>
+  </div>
+  <div class="tab-content" id="tc-multi" style="display:none;">
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="btn" style="flex:1;" onclick="joinPublicLobby()">🌍 Public Game</button>
+      <button class="btn" style="flex:1;background:linear-gradient(135deg,#2d6a4f,#1b4332);" onclick="showPrivate()">🔒 Private Room</button>
+    </div>
+    <div id="private-section" style="display:none;">
+      <label class="ov-label">Room Code (blank = random)</label>
+      <input class="ov-input" id="room-code-input" type="text" placeholder="e.g. PARTY" maxlength="6" style="text-transform:uppercase;"/>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" style="flex:1;" onclick="createPrivateRoom()">➕ Create</button>
+        <button class="btn" style="flex:1;background:linear-gradient(135deg,#555,#333);" onclick="joinPrivateRoom()">🔑 Join</button>
+      </div>
+    </div>
+    <div id="lobby-status" style="margin-top:12px;padding:10px;background:#0d0d1a;border-radius:8px;font-size:13px;color:#aaa;text-align:center;">Not connected – pick an option above</div>
+  </div>
+  <button style="background:linear-gradient(135deg,#4a90d9,#2563eb);color:#fff;border:none;border-radius:8px;padding:13px 22px;cursor:pointer;font-size:16px;width:100%;margin-top:8px;" onclick="startGame()">▶ Play Now</button>
+</div>
+</div>
+
+<!-- WARDROBE PANEL -->
+<div class="panel" id="wardrobe-panel">
+  <h2>👗 Wardrobe</h2>
+  <p style="font-size:12px;color:#777;text-align:center;margin-bottom:10px;">Toggle ON/OFF • Pick color with color box</p>
+  <div id="wardrobe-content"></div>
+  <hr class="sep"/>
+  <button class="btn" onclick="closeWardrobe()">✓ Done</button>
+</div>
+
+<!-- ACTIONS PANEL -->
+<div class="panel" id="actions-panel">
+  <h2>⚡ Actions</h2>
+  <div class="row" id="actions-list" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+  <hr class="sep"/>
+  <div id="action-sub" style="margin-top:8px;"></div>
+  <button class="btn" onclick="closePanel('actions-panel')">Close</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────
+const WS_URL = window.LIFESIM_WS_URL || null; // Set via window.LIFESIM_WS_URL = 'wss://yourapp.onrender.com'
+
+// ── STATE ───────────────────────────────────────────────────────
+let scene, camera, renderer, clock;
+let player = {x:0,y:0,z:0, ry:0, speed:0.08, isRunning:false, isJumping:false, vy:0};
+let camMode = 3; // 1=first, 2=second, 3=third
+let mouseLocked = false;
+let keys = {};
+let yaw = 0, pitch = 0;
+let playerMesh = null;
+let bustPhysics = {phase:0, sway:0};
+let charConfig = {name:'Player',gender:'female',skin:'#F1C27D',hair:'#3b1e08',bust:3,body:'normal',house:'normal'};
+let clothing = {
+  bra:      {on:true,  color:'#ff69b4', mesh:null},
+  slip:     {on:true,  color:'#ff69b4', mesh:null},
+  underwear:{on:false, color:'#4169e1', mesh:null},
+  tshirt:   {on:false, color:'#ffffff', mesh:null},
+  top:      {on:false, color:'#ff6b9d', mesh:null},
+  bikini:   {on:false, color:'#ff1493', mesh:null},
+  shorts:   {on:false, color:'#4682b4', mesh:null},
+  pants:    {on:false, color:'#2f4f4f', mesh:null},
+  shoes:    {on:false, color:'#8b4513', mesh:null},
+  socks:    {on:false, color:'#ffffff', mesh:null},
+  coat:     {on:false, color:'#555555', mesh:null}
+};
+let inCar = false, carMesh = null, carVel = 0;
+let npcs = [], otherPlayers = {};
+let wsConn = null, myRoom = null, myPlayerId = 'p_'+Math.random().toString(36).slice(2,8);
+let chatOpen = false;
+let nearWardrobe = false, nearCar = false, nearNPC = null, nearShop = false;
+let actionMenuOpen = false;
+const GROUND = 0;
+
+// NPC dialogues
+const NPC_LINES = {
+  'Alex':  ['Hey! Ready for today?','I follow you everywhere!','Want to hang out?','You look great today!','Let\'s explore together!'],
+  'Sam':   ['Welcome to the shop!','We have everything you need!','All items are free today!','Great to see you!'],
+  'Mrs. Chen':['Class starts soon!','Have you done your homework?','Learning is fun!','Welcome back, student!'],
+  'Tommy': ['Wanna play?','This is so cool!','Can we be friends?','Let\'s go outside!']
+};
+
+// ── THREE.JS INIT ────────────────────────────────────────────────
+function initThree(){
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87CEEB);
+  scene.fog = new THREE.Fog(0x87CEEB, 40, 120);
+  clock = new THREE.Clock();
+
+  renderer = new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.05, 300);
+
+  // Lights
+  const sun = new THREE.DirectionalLight(0xfff5e0, 1.3);
+  sun.position.set(20,40,20);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048,2048);
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 200;
+  sun.shadow.camera.left = -60;
+  sun.shadow.camera.right = 60;
+  sun.shadow.camera.top = 60;
+  sun.shadow.camera.bottom = -60;
+  scene.add(sun);
+  scene.add(new THREE.AmbientLight(0x8899bb, 0.7));
+  const fill = new THREE.DirectionalLight(0xaaccff, 0.4);
+  fill.position.set(-10,10,-10);
+  scene.add(fill);
+
+  buildWorld();
+  buildPlayerMesh();
+  buildNPCs();
+  animate();
+}
+
+// ── WORLD ───────────────────────────────────────────────────────
+function mat(color, rough=0.8, metal=0){
+  return new THREE.MeshStandardMaterial({color, roughness:rough, metalness:metal});
+}
+function box(w,h,d,color,x,y,z,rx=0,ry=0){
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), mat(color));
+  m.position.set(x,y,z);
+  m.rotation.set(rx,ry,0);
+  m.castShadow = true; m.receiveShadow = true;
+  scene.add(m); return m;
+}
+function cyl(rt,rb,h,color,x,y,z,seg=12){
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg), mat(color));
+  m.position.set(x,y,z);
+  m.castShadow=true; m.receiveShadow=true;
+  scene.add(m); return m;
+}
+
+function buildWorld(){
+  // Ground
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200,200), mat(0x5a8a3c,0.9));
+  ground.rotation.x = -Math.PI/2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Road
+  box(200,0.05,6, 0x444444, 0,0.03,0, 0,0);
+
+  // ── HOUSE ──
+  // Walls
+  box(10,5,10, 0xf5e6c8, 0,2.5,0);
+  // Roof
+  const roofGeo = new THREE.ConeGeometry(8,3,4);
+  const roof = new THREE.Mesh(roofGeo, mat(0xc0392b,0.7));
+  roof.position.set(0,6.5,0); roof.rotation.y = Math.PI/4;
+  roof.castShadow=true; scene.add(roof);
+  // Door
+  box(1.2,2.2,0.1, 0x8B4513, 0,1.1,5.06);
+  // Windows
+  box(1.2,1,0.1, 0x87ceeb, -2.5,3,5.06);
+  box(1.2,1,0.1, 0x87ceeb, 2.5,3,5.06);
+  // Floor inside
+  box(9.8,0.1,9.8, 0xdeb887, 0,0.05,0);
+
+  // Furniture – sofa
+  box(3,0.5,1.2, 0x8B4513, -2.5,0.3,-2);
+  box(3,0.8,0.3, 0x8B4513, -2.5,0.7,-2.6);
+  box(0.3,0.8,1.2, 0x8B4513, -4.1,0.7,-2);
+  box(0.3,0.8,1.2, 0x8B4513, -0.9,0.7,-2);
+  // Coffee table
+  box(1.2,0.05,0.7, 0x5C4033, -2.5,0.6,-1);
+  // TV stand
+  box(2,0.6,0.4, 0x2c2c2c, -2.5,0.3,2.5);
+  // TV
+  box(1.8,1,0.05, 0x111111, -2.5,1.3,2.7);
+  box(1.6,0.85,0.02, 0x001122, -2.5,1.35,2.72);
+
+  // Kitchen area (right side)
+  box(3,1,0.6, 0xcccccc, 2.5,0.5,-1);
+  box(3,0.05,0.6, 0x999999, 2.5,1.05,-1);
+  box(0.6,1.2,0.6, 0x888888, 2.5,0.6,-3.5); // fridge
+  // Table + chairs
+  box(1.5,0.08,1, 0xa0522d, 2.5,0.76,2);
+  cyl(0.04,0.04,0.76, 0x8B4513, 2,0.38,2);
+  cyl(0.04,0.04,0.76, 0x8B4513, 3,0.38,2);
+  box(0.5,0.4,0.5, 0x8B4513, 2,0.5,2.8);
+  box(0.5,0.4,0.5, 0x8B4513, 3,0.5,2.8);
+
+  // Bed
+  box(2,0.4,3.2, 0x4682b4, 3,0.2,-3);
+  box(2,0.6,0.3, 0x3a5f8a, 3,0.7,-4.55); // headboard
+  box(1.8,0.15,2.8, 0xfff0e0, 3,0.42,-3); // sheets
+  box(0.8,0.2,0.5, 0xfff0e0, 3,0.6,-1.6); // pillow
+
+  // Wardrobe (trigger point)
+  const wardrobeMesh = box(1.5,2.2,0.6, 0x5c3317, -3.8,1.1,-3.5);
+  wardrobeMesh.userData.isWardrobe = true;
+  box(0.74,2.18,0.58, 0x6b3a1f, -4.58,1.1,-3.5);
+  box(0.02,0.08,0.08, 0xd4af37, -3.08,1.1,-3.5);
+
+  // Stairs
+  for(let i=0;i<6;i++) box(1.5,0.2,0.5, 0xccaa88, -4,0.1+i*0.25,-2+i*0.5);
+
+  // Door frame
+  box(0.1,2.4,0.1, 0x8B4513, -0.6,1.2,5.0);
+  box(0.1,2.4,0.1, 0x8B4513, 0.6,1.2,5.0);
+  box(1.2,0.1,0.1, 0x8B4513, 0,2.45,5.0);
+
+  // ── SHOP ──
+  box(8,4,7, 0xffe4b5, 22,2,-5);
+  box(8,0.1,7, 0xffcc99, 22,4.05,-5);
+  box(1.2,2.2,0.1, 0x8B4513, 22,1.1,-1.44);
+  box(2,0.05,0.1, 0xffd700, 22,0.05,-1.44);
+  // Shop sign
+  box(4,0.8,0.1, 0xff6600, 22,4.5,-1.44);
+
+  // ── SCHOOL ──
+  box(12,5,9, 0xf0e6d3, -22,2.5,-8);
+  box(12,0.1,9, 0xddccaa, -22,5.05,-8);
+  box(1.5,2.5,0.1, 0x8B4513, -22,1.25,-3.44);
+  // Flag
+  cyl(0.05,0.05,4, 0x888888, -16,2,0);
+  box(0.8,0.5,0.05, 0xff0000, -15.6,4,0);
+
+  // ── CAR ──
+  carMesh = new THREE.Group();
+  const carBody = new THREE.Mesh(new THREE.BoxGeometry(2,0.7,4), mat(0xe74c3c,0.4,0.3));
+  carBody.position.y=0.55; carBody.castShadow=true;
+  const carTop = new THREE.Mesh(new THREE.BoxGeometry(1.6,0.55,2.2), mat(0xc0392b,0.4,0.2));
+  carTop.position.set(0,1.1,0); carTop.castShadow=true;
+  // Windshield tint
+  const windshield = new THREE.Mesh(new THREE.BoxGeometry(1.55,0.45,0.05), mat(0x87ceeb,0.1,0.3));
+  windshield.position.set(0,1.1,1.15);
+  // Wheels
+  function addWheel(x,z){
+    const wg = new THREE.CylinderGeometry(0.32,0.32,0.22,14);
+    const wm = new THREE.Mesh(wg, mat(0x222222,0.9));
+    wm.rotation.z=Math.PI/2; wm.position.set(x,0.32,z);
+    wm.castShadow=true; carMesh.add(wm);
+    const hg = new THREE.CylinderGeometry(0.12,0.12,0.24,8);
+    const hm = new THREE.Mesh(hg, mat(0xaaaaaa,0.3,0.5));
+    hm.rotation.z=Math.PI/2; hm.position.set(x,0.32,z);
+    carMesh.add(hm);
+  }
+  addWheel(1.1,1.3); addWheel(-1.1,1.3); addWheel(1.1,-1.3); addWheel(-1.1,-1.3);
+  // Headlights
+  const hlmat = mat(0xffffcc,0.1,0.5);
+  [[-0.6,0.55,2.01],[0.6,0.55,2.01]].forEach(([x,y,z])=>{
+    carMesh.add(Object.assign(new THREE.Mesh(new THREE.BoxGeometry(0.28,0.18,0.05),hlmat),{position:{x,y,z}}));
+  });
+  carMesh.add(carBody,carTop,windshield);
+  carMesh.position.set(8,0,10);
+  scene.add(carMesh);
+
+  // ── TREES ──
+  [[12,0,-20],[-12,0,-20],[20,0,10],[-20,0,10],[15,0,20],[-15,0,20],[30,0,-10],[-30,0,-10]].forEach(([x,y,z])=>{
+    cyl(0.15,0.25,1.8, 0x5c3317, x,0.9,z, 8);
+    const leafMat = new THREE.MeshStandardMaterial({color:0x2d8a2d+Math.floor(Math.random()*0x111111),roughness:0.9});
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(1.2+Math.random()*0.5,8,6), leafMat);
+    leaf.position.set(x,2.8+Math.random()*0.4,z); leaf.castShadow=true; scene.add(leaf);
+    const leaf2 = new THREE.Mesh(new THREE.SphereGeometry(0.9,7,5), leafMat);
+    leaf2.position.set(x+0.5,3.3,z+0.3); leaf2.castShadow=true; scene.add(leaf2);
+  });
+
+  // ── FENCE ──
+  for(let i=-10;i<=10;i+=1.5){
+    box(0.08,1,0.08, 0xddddcc, i,0.5,8);
+    box(0.08,1,0.08, 0xddddcc, i,0.5,-8);
+  }
+  box(10,0.08,0.08, 0xddddcc, 0,1,8);
+  box(10,0.08,0.08, 0xddddcc, 0,1,-8);
+
+  // Path from house to road
+  box(1.4,0.03,4, 0xddcc99, 0,0.02,7);
+
+  // Swimming pool placeholder (dug out)
+  const poolGeo = new THREE.BoxGeometry(5,0.5,3);
+  const pool = new THREE.Mesh(poolGeo, new THREE.MeshStandardMaterial({color:0x1e90ff,transparent:true,opacity:0.7}));
+  pool.position.set(-8,0.25,8); scene.add(pool);
+  box(5,0.05,3, 0x88ccff, -8,0.51,8);
+}
+
+// ── REALISTIC HUMAN CHARACTER ──────────────────────────────────
+function buildPlayerMesh(){
+  if(playerMesh){ scene.remove(playerMesh); playerMesh=null; }
+  const g = charConfig.gender;
+  const skinColor = new THREE.Color(charConfig.skin);
+  const hairColor = new THREE.Color(charConfig.hair);
+  const bustSize  = parseFloat(charConfig.bust)/5;
+  const isCurvy   = charConfig.body === 'curvy';
+  const isSlim    = charConfig.body === 'slim';
+
+  playerMesh = new THREE.Group();
+
+  function smesh(geo, color, x=0,y=0,z=0, sx=1,sy=1,sz=1){
+    const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color,roughness:0.7,metalness:0}));
+    m.scale.set(sx,sy,sz);
+    m.position.set(x,y,z);
+    m.castShadow=true;
+    return m;
+  }
+
+  // ── TORSO
+  const torsoW = isCurvy ? 0.38 : isSlim ? 0.28 : 0.32;
+  const torso = smesh(new THREE.CylinderGeometry(torsoW*0.85, torsoW, 0.6, 16), skinColor, 0,1.0,0);
+  playerMesh.add(torso);
+
+  // ── CHEST / BUST (female)
+  if(g==='female'){
+    const bSize = 0.07 + bustSize*0.11;
+    const bustL = new THREE.Mesh(new THREE.SphereGeometry(bSize,12,10), new THREE.MeshStandardMaterial({color:skinColor,roughness:0.6}));
+    const bustR = bustL.clone();
+    bustL.position.set(-0.1,1.15,torsoW*0.75);
+    bustR.position.set(0.1,1.15,torsoW*0.75);
+    bustL.castShadow=true; bustR.castShadow=true;
+    bustL.name='bustL'; bustR.name='bustR';
+    playerMesh.add(bustL,bustR);
+  }
+
+  // ── HIPS
+  const hipW = isCurvy ? 0.42 : isSlim ? 0.28 : 0.34;
+  const hips = smesh(new THREE.CylinderGeometry(hipW*0.9, hipW, 0.28, 16), skinColor, 0,0.66,0);
+  playerMesh.add(hips);
+
+  // ── BUTTOCKS
+  const buttL = new THREE.Mesh(new THREE.SphereGeometry(isCurvy?0.16:0.12,10,8), new THREE.MeshStandardMaterial({color:skinColor,roughness:0.6}));
+  const buttR = buttL.clone();
+  buttL.position.set(-0.1,0.62,-0.08); buttR.position.set(0.1,0.62,-0.08);
+  playerMesh.add(buttL,buttR);
+
+  // ── NECK
+  const neck = smesh(new THREE.CylinderGeometry(0.09,0.1,0.22,12), skinColor, 0,1.4,0);
+  playerMesh.add(neck);
+
+  // ── HEAD
+  const head = smesh(new THREE.SphereGeometry(0.2,16,14), skinColor, 0,1.71,0, 1.0,1.15,1.0);
+  head.name='head';
+  playerMesh.add(head);
+
+  // ── FACE FEATURES
+  // Eyes
+  const eyeGeo = new THREE.SphereGeometry(0.03,8,6);
+  const eyeMat = new THREE.MeshStandardMaterial({color:0x111111});
+  const eyeWhiteMat = new THREE.MeshStandardMaterial({color:0xffffff});
+  const eyeR = new THREE.Mesh(eyeGeo,eyeMat); eyeR.position.set(0.07,1.75,0.17);
+  const eyeL = new THREE.Mesh(eyeGeo,eyeMat); eyeL.position.set(-0.07,1.75,0.17);
+  const eyeWR = new THREE.Mesh(new THREE.SphereGeometry(0.042,8,6),eyeWhiteMat); eyeWR.position.set(0.07,1.75,0.165);
+  const eyeWL = eyeWR.clone(); eyeWL.position.set(-0.07,1.75,0.165);
+  playerMesh.add(eyeWR,eyeWL,eyeR,eyeL);
+
+  // Iris color
+  const irisMat = new THREE.MeshStandardMaterial({color:0x4a90d9});
+  const irisR = new THREE.Mesh(new THREE.SphereGeometry(0.022,8,6),irisMat); irisR.position.set(0.07,1.75,0.175);
+  const irisL = irisR.clone(); irisL.position.set(-0.07,1.75,0.175);
+  playerMesh.add(irisR,irisL);
+
+  // Nose
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.025,6,5), new THREE.MeshStandardMaterial({color:skinColor,roughness:0.8}));
+  nose.position.set(0,1.68,0.19); nose.scale.set(1,0.7,0.8);
+  playerMesh.add(nose);
+
+  // Lips
+  const lipMat = new THREE.MeshStandardMaterial({color: g==='female'?0xc06080:0xb06060,roughness:0.5});
+  const lip = new THREE.Mesh(new THREE.SphereGeometry(0.04,8,5), lipMat);
+  lip.position.set(0,1.63,0.185); lip.scale.set(1.5,0.5,0.8);
+  playerMesh.add(lip);
+
+  // Ears
+  const earGeo = new THREE.SphereGeometry(0.045,8,6);
+  const earMat = new THREE.MeshStandardMaterial({color:skinColor,roughness:0.7});
+  const earR = new THREE.Mesh(earGeo,earMat); earR.position.set(0.195,1.7,0); earR.scale.set(0.5,0.8,0.5);
+  const earL = earR.clone(); earL.position.set(-0.195,1.7,0);
+  playerMesh.add(earR,earL);
+
+  // Eyebrows
+  const browMat = new THREE.MeshStandardMaterial({color:hairColor});
+  const browGeo = new THREE.BoxGeometry(0.07,0.015,0.01);
+  const browR = new THREE.Mesh(browGeo,browMat); browR.position.set(0.07,1.795,0.175); browR.rotation.z=0.15;
+  const browL = new THREE.Mesh(browGeo,browMat); browL.position.set(-0.07,1.795,0.175); browL.rotation.z=-0.15;
+  playerMesh.add(browR,browL);
+
+  // ── HAIR
+  const hairMat = new THREE.MeshStandardMaterial({color:hairColor,roughness:0.9});
+  const hairMain = new THREE.Mesh(new THREE.SphereGeometry(0.21,14,10),hairMat);
+  hairMain.position.set(0,1.76,0); hairMain.scale.set(1,1.05,1); playerMesh.add(hairMain);
+
+  if(g==='female'){
+    // Long hair strands
+    const hg = new THREE.CylinderGeometry(0.05,0.02,0.6,8);
+    for(let a=0;a<6;a++){
+      const ang = (a/6)*Math.PI*2;
+      const hstr = new THREE.Mesh(hg,hairMat);
+      hstr.position.set(Math.sin(ang)*0.17,1.45,Math.cos(ang)*0.17);
+      hstr.rotation.x = 0.3; hstr.rotation.z = Math.sin(ang)*0.2;
+      playerMesh.add(hstr);
+    }
+    // Back hair
+    const backHair = new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.04,0.8,8),hairMat);
+    backHair.position.set(0,1.35,-0.12); backHair.rotation.x=-0.3; playerMesh.add(backHair);
+  } else {
+    // Short hair bumps
+    const sg = new THREE.SphereGeometry(0.06,8,6);
+    for(let a=0;a<5;a++){
+      const ang=(a/5)*Math.PI*2;
+      const sh = new THREE.Mesh(sg,hairMat);
+      sh.position.set(Math.sin(ang)*0.15,1.88,Math.cos(ang)*0.08); playerMesh.add(sh);
+    }
+  }
+
+  // ── UPPER ARMS (tapered)
+  function addArm(side){
+    const s = side===1?1:-1;
+    const armG = new THREE.CylinderGeometry(0.07,0.09,0.38,12);
+    const arm = new THREE.Mesh(armG, new THREE.MeshStandardMaterial({color:skinColor,roughness:0.7}));
+    arm.position.set(s*(torsoW+0.12),1.05,0); arm.rotation.z=s*(-0.18);
+    arm.castShadow=true; playerMesh.add(arm);
+    // Forearm
+    const faG = new THREE.CylinderGeometry(0.055,0.07,0.35,12);
+    const fa = new THREE.Mesh(faG, new THREE.MeshStandardMaterial({color:skinColor,roughness:0.7}));
+    fa.position.set(s*(torsoW+0.16),0.7,0); fa.rotation.z=s*(-0.25);
+    fa.castShadow=true; playerMesh.add(fa);
+    // Hand
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.06,8,6), new THREE.MeshStandardMaterial({color:skinColor,roughness:0.7}));
+    hand.position.set(s*(torsoW+0.2),0.45,0.03); hand.scale.set(1,0.75,0.6); playerMesh.add(hand);
+    // Fingers
+    for(let f=0;f<4;f++){
+      const fg2 = new THREE.CylinderGeometry(0.012,0.015,0.07,6);
+      const finger = new THREE.Mesh(fg2, new THREE.MeshStandardMaterial({color:skinColor,roughness:0.7}));
+      finger.position.set(s*(torsoW+0.19)+f*0.015*s,0.38,0.03+f*0.01);
+      finger.rotation.z = s*0.1; playerMesh.add(finger);
+    }
+  }
+  addArm(1); addArm(-1);
+
+  // ── LEGS
+  function addLeg(side){
+    const s = side===1?1:-1;
+    const x = s*0.12;
+    // Thigh
+    const thG = new THREE.CylinderGeometry(0.11,0.12,0.45,14);
+    const th = new THREE.Mesh(thG, new THREE.MeshStandardMaterial({color:skinColor,roughness:0.7}));
+    th.position.set(x,0.35,0); th.castShadow=true; playerMesh.add(th);
+    // Knee bump
+    const knee = new THREE.Mesh(new THREE.SphereGeometry(0.09,8,6), new THREE.MeshStandardMaterial({color:skinColor,roughness:0.7}));
+    knee.position.set(x,0.1,0.02); playerMesh.add(knee);
+    // Shin
+    const shG = new THREE.CylinderGeometry(0.07,0.09,0.4,12);
+    const sh2 = new THREE.Mesh(shG, new THREE.MeshStandardMaterial({color:skinColor,roughness:0.7}));
+    sh2.position.set(x,-0.14,0.01); sh2.castShadow=true; playerMesh.add(sh2);
+    // Ankle
+    const ank = new THREE.Mesh(new THREE.SphereGeometry(0.065,8,6), new THREE.MeshStandardMaterial({color:skinColor,roughness:0.7}));
+    ank.position.set(x,-0.33,0); playerMesh.add(ank);
+    // Foot
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.12,0.07,0.22), new THREE.MeshStandardMaterial({color:skinColor,roughness:0.7}));
+    foot.position.set(x,-0.38,0.06); playerMesh.add(foot);
+  }
+  addLeg(1); addLeg(-1);
+
+  playerMesh.position.set(player.x, player.y, player.z);
+  scene.add(playerMesh);
+
+  // Rebuild clothing meshes
+  rebuildClothing();
+}
+
+// ── CLOTHING SYSTEM ─────────────────────────────────────────────
+const CLOTH_DEFS = {
+  bra:       {label:'👙 Bra',       female:true,  geo:()=>new THREE.CylinderGeometry(0.16,0.175,0.1,16),  pos:[0,1.18,0] },
+  slip:      {label:'👙 Slip',      female:true,  geo:()=>new THREE.CylinderGeometry(0.22,0.26,0.2,16),   pos:[0,0.56,0] },
+  underwear: {label:'🩲 Underwear', female:false, geo:()=>new THREE.CylinderGeometry(0.21,0.25,0.22,16),  pos:[0,0.55,0] },
+  tshirt:    {label:'👕 T-Shirt',   female:null,  geo:()=>new THREE.CylinderGeometry(0.35,0.36,0.62,16),  pos:[0,1.02,0] },
+  top:       {label:'👚 Top',       female:null,  geo:()=>new THREE.CylinderGeometry(0.33,0.35,0.42,16),  pos:[0,1.1,0]  },
+  bikini:    {label:'🩱 Sexy Bikini',female:true, geo:()=>new THREE.CylinderGeometry(0.175,0.18,0.1,16),  pos:[0,1.18,0] },
+  shorts:    {label:'🩳 Shorts',    female:null,  geo:()=>new THREE.CylinderGeometry(0.26,0.32,0.38,16),  pos:[0,0.3,0]  },
+  pants:     {label:'👖 Pants',     female:null,  geo:()=>new THREE.CylinderGeometry(0.15,0.26,0.72,16),  pos:[0,0.18,0] },
+  shoes:     {label:'👟 Shoes',     female:null,  geo:()=>new THREE.BoxGeometry(0.3,0.08,0.24),           pos:[0,-0.38,0.05] },
+  socks:     {label:'🧦 Socks',     female:null,  geo:()=>new THREE.CylinderGeometry(0.08,0.09,0.22,10),  pos:[0,-0.25,0] },
+  coat:      {label:'🧥 Coat',      female:null,  geo:()=>new THREE.CylinderGeometry(0.38,0.4,0.85,16),   pos:[0,0.92,0] }
+};
+
+function rebuildClothing(){
+  if(!playerMesh) return;
+  // Remove old clothing meshes
+  for(const k in clothing){
+    if(clothing[k].mesh){ playerMesh.remove(clothing[k].mesh); clothing[k].mesh=null; }
+  }
+  const g = charConfig.gender;
+  for(const k in CLOTH_DEFS){
+    const def = CLOTH_DEFS[k];
+    const c = clothing[k];
+    if(def.female === true && g !== 'female') continue;
+    if(def.female === false && g !== 'male') continue;
+    if(!c.on) continue;
+
+    const hexColor = parseInt(c.color.replace('#',''),16);
+    let mesh;
+    if(k==='shoes'){
+      // Two shoes
+      const g2 = new THREE.Group();
+      const shGeo = def.geo();
+      const shMat = new THREE.MeshStandardMaterial({color:hexColor,roughness:0.6});
+      const shL = new THREE.Mesh(shGeo,shMat); shL.position.set(-0.12,0,0);
+      const shR = new THREE.Mesh(shGeo,shMat); shR.position.set(0.12,0,0);
+      g2.add(shL,shR);
+      g2.position.set(...def.pos);
+      mesh = g2;
+    } else if(k==='socks'){
+      const g3 = new THREE.Group();
+      const skGeo = def.geo();
+      const skMat = new THREE.MeshStandardMaterial({color:hexColor,roughness:0.8});
+      const skL = new THREE.Mesh(skGeo,skMat); skL.position.set(-0.12,0,0);
+      const skR = new THREE.Mesh(skGeo,skMat); skR.position.set(0.12,0,0);
+      g3.add(skL,skR);
+      g3.position.set(...def.pos);
+      mesh = g3;
+    } else {
+      mesh = new THREE.Mesh(def.geo(), new THREE.MeshStandardMaterial({color:hexColor,roughness:0.55,metalness:0.05}));
+      mesh.position.set(...def.pos);
+      // Bra cups for female
+      if(k==='bra' && g==='female'){
+        const bustSize = parseFloat(charConfig.bust)/5;
+        const bSize = 0.07+bustSize*0.11;
+        const cupMat = new THREE.MeshStandardMaterial({color:hexColor,roughness:0.5});
+        const cupL = new THREE.Mesh(new THREE.SphereGeometry(bSize*1.1,10,8),cupMat);
+        const cupR = cupL.clone();
+        cupL.position.set(-0.1,0.03,0.16); cupR.position.set(0.1,0.03,0.16);
+        mesh.add(cupL,cupR);
+      }
+      if(k==='bikini' && g==='female'){
+        const bustSize = parseFloat(charConfig.bust)/5;
+        const bSize = 0.07+bustSize*0.11;
+        const triMat = new THREE.MeshStandardMaterial({color:hexColor,roughness:0.5});
+        const triL = new THREE.Mesh(new THREE.SphereGeometry(bSize*1.05,8,6),triMat);
+        const triR = triL.clone();
+        triL.position.set(-0.1,0.03,0.15); triR.position.set(0.1,0.03,0.15);
+        mesh.add(triL,triR);
+      }
+    }
+    mesh.castShadow=true;
+    clothing[k].mesh = mesh;
+    playerMesh.add(mesh);
+  }
+}
+
+function updateClothingColor(key){
+  const c = clothing[key];
+  if(!c.mesh) return;
+  const hexColor = parseInt(c.color.replace('#',''),16);
+  c.mesh.traverse(obj=>{
+    if(obj.isMesh && obj.material){
+      obj.material.color.setHex(hexColor);
+      obj.material.needsUpdate=true;
+    }
+  });
+}
+
+// ── WARDROBE UI ─────────────────────────────────────────────────
+function buildWardrobeUI(){
+  const container = document.getElementById('wardrobe-content');
+  container.innerHTML='';
+  const g = charConfig.gender;
+  for(const k in CLOTH_DEFS){
+    const def = CLOTH_DEFS[k];
+    if(def.female===true && g!=='female') continue;
+    if(def.female===false && g!=='male') continue;
+    const c = clothing[k];
+    const row = document.createElement('div');
+    row.className='cloth-row';
+    row.innerHTML=`
+      <span>${def.label}</span>
+      <input type="color" id="col_${k}" value="${c.color}" title="Pick color" style="width:34px;height:28px;border:none;border-radius:5px;cursor:pointer;padding:0;"/>
+      <button class="tog ${c.on?'on':''}" id="tog_${k}" onclick="toggleCloth('${k}')">${c.on?'ON':'OFF'}</button>
+    `;
+    container.appendChild(row);
+    // Live color update
+    setTimeout(()=>{
+      const inp = document.getElementById('col_'+k);
+      if(inp) inp.addEventListener('input',e=>{
+        clothing[k].color = e.target.value;
+        if(clothing[k].on) updateClothingColor(k);
+      });
+    },50);
+  }
+}
+
+function toggleCloth(key){
+  clothing[key].on = !clothing[key].on;
+  const btn = document.getElementById('tog_'+key);
+  if(btn){ btn.textContent=clothing[key].on?'ON':'OFF'; btn.classList.toggle('on',clothing[key].on); }
+  rebuildClothing();
+}
+
+function closeWardrobe(){
+  document.getElementById('wardrobe-panel').style.display='none';
+  if(mouseLocked) document.body.requestPointerLock();
+}
+
+// ── NPCS ────────────────────────────────────────────────────────
+function buildNPCs(){
+  const npcDefs = [
+    {name:'Alex',   color:0xf39c12, x:3,  z:-6, patrol:false},
+    {name:'Sam',    color:0x27ae60, x:22, z:-7, patrol:true},
+    {name:'Mrs. Chen',color:0x8e44ad,x:-22,z:-9,patrol:true},
+    {name:'Tommy',  color:0xe74c3c, x:-5, z:8,  patrol:true}
+  ];
+  npcs = npcDefs.map(def=>{
+    const g = new THREE.Group();
+    // Simple but proportioned NPC
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.2,0.5,10), new THREE.MeshStandardMaterial({color:def.color,roughness:0.7}));
+    torso.position.y=0.95;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.17,12,10), new THREE.MeshStandardMaterial({color:0xF1C27D,roughness:0.7}));
+    head.position.y=1.45;
+    const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,0.5,10), new THREE.MeshStandardMaterial({color:0x2c3e50,roughness:0.8}));
+    legL.position.set(-0.1,0.45,0);
+    const legR = legL.clone(); legR.position.set(0.1,0.45,0);
+    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.065,0.38,10), new THREE.MeshStandardMaterial({color:def.color,roughness:0.7}));
+    armL.position.set(-0.27,1.0,0); armL.rotation.z=0.3;
+    const armR = armL.clone(); armR.position.set(0.27,1.0,0); armR.rotation.z=-0.3;
+    // Eyes
+    const eyeM = new THREE.MeshStandardMaterial({color:0x111111});
+    const eL = new THREE.Mesh(new THREE.SphereGeometry(0.025,6,5),eyeM); eL.position.set(-0.06,1.48,0.14);
+    const eR = eL.clone(); eR.position.set(0.06,1.48,0.14);
+    // Name tag
+    g.add(torso,head,legL,legR,armL,armR,eL,eR);
+    g.position.set(def.x,0,def.z);
+    g.castShadow=true;
+    scene.add(g);
+    return {mesh:g, name:def.name, baseX:def.x, baseZ:def.z, patrol:def.patrol, angle:0, dialogIdx:0, walkPhase:0};
+  });
+}
+
+// ── OTHER PLAYERS (multiplayer) ─────────────────────────────────
+function createOtherPlayerMesh(pid, color){
+  const g = new THREE.Group();
+  const c = new THREE.MeshStandardMaterial({color:color||0x3498db,roughness:0.7});
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.2,0.5,10),c);
+  torso.position.y=0.95;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17,12,10),new THREE.MeshStandardMaterial({color:0xF1C27D}));
+  head.position.y=1.45;
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.08,0.5,10),new THREE.MeshStandardMaterial({color:0x2c3e50}));
+  legL.position.set(-0.1,0.45,0);
+  const legR=legL.clone(); legR.position.set(0.1,0.45,0);
+  g.add(torso,head,legL,legR);
+  g.position.set(5,0,5);
+  scene.add(g);
+  otherPlayers[pid] = g;
+  return g;
+}
+
+// ── WEBSOCKET MULTIPLAYER ────────────────────────────────────────
+function connectWS(roomId, isPrivate){
+  if(!WS_URL){ simulateBots(); return; }
+  try{
+    wsConn = new WebSocket(WS_URL);
+    wsConn.onopen=()=>{
+      wsConn.send(JSON.stringify({type:'join',room:roomId,pid:myPlayerId,name:charConfig.name,private:isPrivate}));
+      document.getElementById('lobby-status').textContent='✅ Connected to room: '+roomId;
+    };
+    wsConn.onmessage=e=>{
+      try{
+        const d=JSON.parse(e.data);
+        if(d.type==='state'){ handleServerState(d); }
+        else if(d.type==='chat'){ addChatMsg(d.name+': '+d.msg,'#7cf'); }
+        else if(d.type==='join'){ addChatMsg('🟢 '+d.name+' joined','#8de5a1'); }
+        else if(d.type==='leave'){ 
+          if(otherPlayers[d.pid]){ scene.remove(otherPlayers[d.pid]); delete otherPlayers[d.pid]; }
+          addChatMsg('🔴 '+d.name+' left','#ff9f9b');
+        }
+      }catch(err){}
+    };
+    wsConn.onclose=()=>{ simulateBots(); };
+    wsConn.onerror=()=>{ simulateBots(); };
+  }catch(err){ simulateBots(); }
+}
+
+function handleServerState(d){
+  if(!d.players) return;
+  const colors=[0x3498db,0xe74c3c,0x2ecc71,0xf39c12,0x9b59b6,0x1abc9c];
+  d.players.forEach((p,i)=>{
+    if(p.pid===myPlayerId) return;
+    if(!otherPlayers[p.pid]) createOtherPlayerMesh(p.pid,colors[i%colors.length]);
+    otherPlayers[p.pid].position.set(p.x,p.y,p.z);
+    otherPlayers[p.pid].rotation.y=p.ry||0;
+  });
+  const cnt = d.players.length;
+  document.getElementById('player-count').textContent=cnt;
+  updatePlayerList(d.players);
+}
+
+function sendPosition(){
+  if(wsConn && wsConn.readyState===1){
+    wsConn.send(JSON.stringify({type:'move',pid:myPlayerId,x:player.x,y:player.y,z:player.z,ry:player.ry}));
+  }
+}
+
+let botInterval=null;
+function simulateBots(){
+  if(botInterval) return;
+  const botColors=[0x3498db,0xe74c3c,0x2ecc71];
+  const bots=['Bot_Anna','Bot_Max','Bot_Luna'];
+  bots.forEach((n,i)=>{
+    const pid='bot_'+i;
+    createOtherPlayerMesh(pid,botColors[i]);
+    otherPlayers[pid].position.set(5+i*3,0,-5+i*2);
+  });
+  document.getElementById('player-count').textContent=bots.length+1;
+  updatePlayerList(bots.map((n,i)=>({pid:'bot_'+i,name:n})));
+  botInterval=setInterval(()=>{
+    bots.forEach((n,i)=>{
+      const pid='bot_'+i;
+      if(otherPlayers[pid]){
+        otherPlayers[pid].position.x+=Math.sin(Date.now()/1200+i)*0.02;
+        otherPlayers[pid].position.z+=Math.cos(Date.now()/1000+i)*0.02;
+      }
+    });
+  },50);
+}
+
+function updatePlayerList(players){
+  const el=document.getElementById('player-list');
+  if(el) el.innerHTML=players.slice(0,5).map(p=>'• '+(p.name||p.pid)).join('<br/>');
+}
+
+function sendChat(msg){
+  if(wsConn && wsConn.readyState===1){
+    wsConn.send(JSON.stringify({type:'chat',pid:myPlayerId,name:charConfig.name,msg}));
+  }
+  addChatMsg('You: '+msg,'#a8d8ff');
+}
+
+function addChatMsg(text,color='#ddd'){
+  const msgs=document.getElementById('chat-msgs');
+  const div=document.createElement('div');
+  div.style.color=color; div.textContent=text;
+  msgs.appendChild(div);
+  msgs.scrollTop=msgs.scrollHeight;
+}
+
+// ── MENU / LOBBY ─────────────────────────────────────────────────
+function switchTab(t){
+  document.getElementById('tc-char').style.display=t==='char'?'block':'none';
+  document.getElementById('tc-multi').style.display=t==='multi'?'block':'none';
+  document.getElementById('tab-char').classList.toggle('active',t==='char');
+  document.getElementById('tab-multi').classList.toggle('active',t==='multi');
+}
+function updateGenderUI(){
+  const g=document.getElementById('p-gender').value;
+  document.getElementById('bust-row').style.display=g==='female'?'block':'none';
+}
+function showPrivate(){ document.getElementById('private-section').style.display='block'; }
+function joinPublicLobby(){
+  myRoom='public_'+Math.floor(Math.random()*5);
+  document.getElementById('lobby-status').textContent='Joining public room: '+myRoom+'…';
+  connectWS(myRoom,false);
+}
+function createPrivateRoom(){
+  const inp=document.getElementById('room-code-input').value.toUpperCase();
+  myRoom=inp||Math.random().toString(36).slice(2,8).toUpperCase();
+  document.getElementById('room-code-input').value=myRoom;
+  document.getElementById('lobby-status').textContent='✅ Room created: '+myRoom+' – Share this code!';
+  connectWS(myRoom,true);
+}
+function joinPrivateRoom(){
+  const code=document.getElementById('room-code-input').value.toUpperCase();
+  if(!code){alert('Enter a room code!');return;}
+  myRoom=code;
+  document.getElementById('lobby-status').textContent='Joining room: '+code+'…';
+  connectWS(myRoom,true);
+}
+
+function startGame(){
+  const name=document.getElementById('p-name').value.trim()||'Player';
+  charConfig.name=name; charConfig.gender=document.getElementById('p-gender').value;
+  charConfig.house=document.getElementById('p-house').value;
+  charConfig.body=document.getElementById('p-body').value;
+  charConfig.bust=document.getElementById('p-bust').value;
+  charConfig.skin=document.querySelector('.skin-swatch.sel')?.dataset.c||'#F1C27D';
+  charConfig.hair=document.getElementById('p-hair').value;
+  document.getElementById('overlay').style.display='none';
+  buildPlayerMesh();
+  if(!myRoom){ myRoom='public_0'; connectWS(myRoom,false); }
+  requestAnimationFrame(()=>{ showStatus('Welcome, '+name+'! Press ] to lock mouse and start exploring!'); });
+}
+
+// ── ACTIONS PANEL ────────────────────────────────────────────────
+const ACTIONS=[
+  {id:'sleep',  label:'😴 Sleep'},
+  {id:'eat',    label:'🍕 Eat'},
+  {id:'drink',  label:'🥤 Drink'},
+  {id:'smoke',  label:'🚬 Smoke'},
+  {id:'alcohol',label:'🍺 Alcohol'},
+  {id:'game',   label:'🎮 Game'},
+  {id:'phone',  label:'📱 Phone'},
+  {id:'family', label:'👨‍👩‍👧 Family'},
+  {id:'tech',   label:'💻 Tech Setup'},
+  {id:'pool',   label:'🏊 Pool'},
+  {id:'rooms',  label:'🏗️ Add Room'},
+  {id:'school', label:'🏫 School'},
+  {id:'door',   label:'🔒 Door Lock'},
+  {id:'car2',   label:'🚗 Summon Car'},
+  {id:'shop2',  label:'🛒 Shop'},
+  {id:'outside',label:'🌳 Go Outside'},
+];
+const ACTION_MESSAGES={
+  sleep:'😴 Sleeping… restoring energy.',
+  eat:'🍕 Eating a delicious meal!',
+  drink:'🥤 Refreshing drink!',
+  smoke:'🚬 Smoking a cigarette.',
+  alcohol:'🍺 Drinking alcohol – feel the buzz!',
+  game:'🎮 Gaming session! +mood',
+  family:'👨‍👩‍👧 Starting a family!',
+  school:'🏫 Going to school!',
+  door:'🔒 Door locked.',
+  car2:'🚗 Car summoned!',
+  outside:'🌳 Heading outside!',
+};
+
+function buildActionsUI(){
+  const list=document.getElementById('actions-list');
+  list.innerHTML='';
+  ACTIONS.forEach(a=>{
+    const btn=document.createElement('button');
+    btn.className='btn-sm'; btn.textContent=a.label;
+    btn.onclick=()=>doAction(a.id);
+    list.appendChild(btn);
+  });
+}
+
+function doAction(id){
+  const sub=document.getElementById('action-sub');
+  sub.innerHTML='';
+  if(id==='phone'){
+    sub.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+      <button class="btn-sm" onclick="showStatus('📞 Calling…')">📞 Call</button>
+      <button class="btn-sm" onclick="showStatus('💬 Chatting…')">💬 Chat</button>
+      <button class="btn-sm" onclick="showStatus('📱 Scrolling Social…')">📱 Social</button>
+      <button class="btn-sm" onclick="showStatus('🗺️ Opening Maps…')">🗺️ Maps</button>
+    </div>`;
+    return;
+  }
+  if(id==='tech'){
+    sub.innerHTML=`<div style="margin-top:8px;"><label style="color:#ccc;font-size:13px;">Device:</label>
+      <select id="tech-device" style="width:100%;padding:6px;background:#0d0d1a;border:1px solid #555;border-radius:6px;color:#fff;font-size:13px;margin:4px 0;">
+        <option>Gaming PC</option><option>Laptop</option><option>MacBook</option>
+      </select>
+      <label style="color:#ccc;font-size:13px;">Monitors: <span id="mon-lbl">2</span></label>
+      <input type="range" min="1" max="3" value="2" style="width:100%;margin:4px 0;" oninput="document.getElementById('mon-lbl').textContent=this.value"/>
+      <label style="color:#ccc;font-size:13px;">Console:</label>
+      <select style="width:100%;padding:6px;background:#0d0d1a;border:1px solid #555;border-radius:6px;color:#fff;font-size:13px;margin:4px 0;">
+        <option>None</option><option>PS5</option><option>Xbox Series X</option><option>Nintendo Switch</option>
+      </select>
+      <button class="btn" onclick="showStatus('💻 Tech setup saved!')">✓ Apply</button></div>`;
+    return;
+  }
+  if(id==='pool'){
+    sub.innerHTML=`<div style="margin-top:8px;">
+      <label style="color:#ccc;font-size:13px;">Depth: <span id="pool-lbl">1.5m</span></label>
+      <input type="range" min="1" max="5" value="2" step="0.5" style="width:100%;margin:4px 0;" oninput="document.getElementById('pool-lbl').textContent=(this.value*0.75).toFixed(1)+'m'"/>
+      <label style="color:#ccc;font-size:13px;">Shape:</label>
+      <select id="pool-shape" style="width:100%;padding:6px;background:#0d0d1a;border:1px solid #555;border-radius:6px;color:#fff;font-size:13px;margin:4px 0;">
+        <option>Rectangle</option><option>L-Shape</option><option>Oval</option><option>Infinity</option>
+      </select>
+      <button class="btn" onclick="showStatus('🏊 Pool updated!')">✓ Build Pool</button></div>`;
+    return;
+  }
+  if(id==='rooms'){
+    sub.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+      <button class="btn-sm" onclick="showStatus('🛏️ Bedroom added!')">🛏️ Bedroom</button>
+      <button class="btn-sm" onclick="showStatus('🚿 Bathroom added!')">🚿 Bathroom</button>
+      <button class="btn-sm" onclick="showStatus('💪 Gym added!')">💪 Gym</button>
+      <button class="btn-sm" onclick="showStatus('💼 Office added!')">💼 Office</button>
+      <button class="btn-sm" onclick="showStatus('🎬 Cinema added!')">🎬 Cinema</button>
+      <button class="btn-sm" onclick="showStatus('🍳 Kitchen+added!')">🍳 Kitchen+</button>
+    </div>`;
+    return;
+  }
+  if(ACTION_MESSAGES[id]) showStatus(ACTION_MESSAGES[id]);
+  document.getElementById('actions-panel').style.display='none';
+}
+
+// ── SHOP PANEL ───────────────────────────────────────────────────
+const SHOP_ITEMS=['🍕 Pizza','🥤 Soda','🎮 Game Controller','💊 Medicine','🛋️ Furniture','🖥️ Monitor','📱 Smartphone','🚗 Car Parts','🎸 Guitar','🏋️ Weights','📚 Books','🌸 Flowers'];
+function openShop(){
+  const sub=document.getElementById('action-sub');
+  document.getElementById('actions-panel').style.display='block';
+  document.getElementById('actions-list').innerHTML='';
+  sub.innerHTML=`<h3 style="color:#a8d8ff;margin-bottom:10px;">🛒 Shop — ∞ Money</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">${SHOP_ITEMS.map(i=>`<button class="btn-sm" onclick="showStatus('✅ Bought '+${JSON.stringify(i)}+'!')">${i}</button>`).join('')}</div>
+    <button class="btn" style="margin-top:10px;" onclick="closePanel('actions-panel')">← Back</button>`;
+}
+
+// ── DIALOGUE ────────────────────────────────────────────────────
+function talkToNearbyNPC(){
+  if(!nearNPC) return;
+  const lines=NPC_LINES[nearNPC.name]||['Hello!'];
+  const line=lines[nearNPC.dialogIdx%lines.length];
+  nearNPC.dialogIdx++;
+  document.getElementById('dlg-name').textContent=nearNPC.name;
+  document.getElementById('dlg-text').textContent=line;
+  document.getElementById('dialogue').style.display='block';
+  if(mouseLocked) document.exitPointerLock();
+}
+function closeDialogue(){ document.getElementById('dialogue').style.display='none'; if(mouseLocked) document.body.requestPointerLock(); }
+
+// ── STATUS BAR ───────────────────────────────────────────────────
+let statusTimer=null;
+function showStatus(msg){
+  const el=document.getElementById('status');
+  el.textContent=msg; el.style.display='block';
+  clearTimeout(statusTimer);
+  statusTimer=setTimeout(()=>el.style.display='none',3000);
+}
+
+// ── INPUT ────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(e.code==='BracketRight'){ toggleMouseLock(); return; }
+  if(e.code==='Slash' && !chatOpen){ e.preventDefault(); toggleActionsMenu(); return; }
+  if(e.code==='KeyE'){ handleE(); return; }
+  if(e.code==='KeyF'){ talkToNearbyNPC(); return; }
+  if(e.code==='KeyC'){ handleCar(); return; }
+  if(e.code==='KeyT'){ toggleChat(); return; }
+  if(e.code==='Digit1'){ setCamMode(1); }
+  if(e.code==='Digit2'){ setCamMode(2); }
+  if(e.code==='Digit3'){ setCamMode(3); }
+  if(e.code==='Escape'){ closeAllPanels(); }
+  if(chatOpen && e.code==='Enter'){
+    const inp=document.getElementById('chat-input');
+    if(inp.value.trim()){ sendChat(inp.value.trim()); inp.value=''; }
+  }
+});
+document.addEventListener('keyup',e=>{ keys[e.code]=false; });
+
+function toggleMouseLock(){
+  if(mouseLocked) document.exitPointerLock();
+  else document.body.requestPointerLock();
+}
+document.addEventListener('pointerlockchange',()=>{
+  mouseLocked=document.pointerLockElement===document.body;
+});
+document.addEventListener('mousemove',e=>{
+  if(!mouseLocked) return;
+  yaw   -= e.movementX * 0.0022;
+  pitch -= e.movementY * 0.0022;
+  pitch=Math.max(-Math.PI/2.5,Math.min(Math.PI/2.5,pitch));
+});
+
+function handleE(){
+  if(nearWardrobe){ openWardrobe(); return; }
+  if(nearShop){ openShop(); return; }
+}
+function openWardrobe(){
+  buildWardrobeUI();
+  document.getElementById('wardrobe-panel').style.display='block';
+  if(mouseLocked) document.exitPointerLock();
+}
+function toggleActionsMenu(){
+  actionMenuOpen=!actionMenuOpen;
+  const p=document.getElementById('actions-panel');
+  if(actionMenuOpen){
+    buildActionsUI();
+    p.style.display='block';
+    if(mouseLocked) document.exitPointerLock();
+  } else { p.style.display='none'; if(!chatOpen) document.body.requestPointerLock(); }
+}
+function handleCar(){
+  const dist=Math.hypot(player.x-carMesh.position.x,player.z-carMesh.position.z);
+  if(!inCar && dist<4){ inCar=true; showStatus('🚗 Driving! WASD=move | C=exit'); }
+  else if(inCar){ inCar=false; player.x=carMesh.position.x+2; player.z=carMesh.position.z; showStatus('🚶 On foot'); }
+}
+function toggleChat(){
+  chatOpen=!chatOpen;
+  const cb=document.getElementById('chat-box');
+  cb.style.display=chatOpen?'flex':'none';
+  if(chatOpen){ if(mouseLocked) document.exitPointerLock(); document.getElementById('chat-input').focus(); }
+  else{ if(mouseLocked) document.body.requestPointerLock(); }
+}
+function closeAllPanels(){
+  ['wardrobe-panel','actions-panel'].forEach(id=>document.getElementById(id).style.display='none');
+  document.getElementById('dialogue').style.display='none';
+  actionMenuOpen=false;
+  chatOpen=false;
+  document.getElementById('chat-box').style.display='none';
+}
+function closePanel(id){ document.getElementById(id).style.display='none'; actionMenuOpen=false; if(mouseLocked) document.body.requestPointerLock(); }
+function setCamMode(m){
+  camMode=m;
+  const labels={1:'👁️ 1st Person',2:'📷 2nd Person',3:'📷 3rd Person'};
+  document.getElementById('cammode').textContent=labels[m];
+}
+
+document.getElementById('chat-send').onclick=()=>{
+  const inp=document.getElementById('chat-input');
+  if(inp.value.trim()){ sendChat(inp.value.trim()); inp.value=''; }
+};
+
+// Skin swatches
+document.querySelectorAll('.skin-swatch').forEach(s=>{
+  s.addEventListener('click',()=>{
+    document.querySelectorAll('.skin-swatch').forEach(x=>x.classList.remove('sel'));
+    s.classList.add('sel');
+  });
+});
+
+// ── CAMERA ──────────────────────────────────────────────────────
+function updateCamera(){
+  if(!playerMesh) return;
+  const px=player.x, py=player.y, pz=player.z;
+  if(camMode===1){
+    // First person
+    camera.position.set(px + Math.sin(yaw)*0.1, py+1.6, pz + Math.cos(yaw)*0.1);
+    camera.rotation.order='YXZ';
+    camera.rotation.y=yaw; camera.rotation.x=pitch;
+    if(playerMesh) playerMesh.visible=false;
+  } else if(camMode===2){
+    // Second person (front-facing)
+    camera.position.set(px - Math.sin(yaw)*3, py+1.8, pz - Math.cos(yaw)*3);
+    camera.lookAt(px,py+1,pz);
+    if(playerMesh) playerMesh.visible=true;
+  } else {
+    // Third person
+    const dist=4.5, heightOff=2.2;
+    camera.position.set(px - Math.sin(yaw)*dist, py+heightOff + Math.sin(pitch)*dist*0.5, pz - Math.cos(yaw)*dist);
+    camera.lookAt(px,py+1,pz);
+    if(playerMesh) playerMesh.visible=true;
+  }
+}
+
+// ── MOVEMENT ────────────────────────────────────────────────────
+let posUpdateTimer=0;
+function updateMovement(dt){
+  if(inCar){
+    const speed = keys['ShiftLeft']||keys['ShiftRight'] ? 0.18 : 0.1;
+    if(keys['KeyW']){ carVel=Math.min(carVel+0.01,speed); }
+    else if(keys['KeyS']){ carVel=Math.max(carVel-0.01,-speed*0.5); }
+    else { carVel*=0.92; }
+    if(keys['KeyA']) carMesh.rotation.y+=0.04;
+    if(keys['KeyD']) carMesh.rotation.y-=0.04;
+    carMesh.position.x+=Math.sin(carMesh.rotation.y)*carVel;
+    carMesh.position.z+=Math.cos(carMesh.rotation.y)*carVel;
+    player.x=carMesh.position.x; player.y=carMesh.position.y; player.z=carMesh.position.z;
+    return;
+  }
+  const speed=(keys['ShiftLeft']||keys['ShiftRight'])?0.14:0.08;
+  let moved=false;
+  if(keys['KeyW']){ player.x+=Math.sin(yaw)*speed; player.z+=Math.cos(yaw)*speed; moved=true; player.ry=yaw; }
+  if(keys['KeyS']){ player.x-=Math.sin(yaw)*speed; player.z-=Math.cos(yaw)*speed; moved=true; }
+  if(keys['KeyA']){ player.x+=Math.sin(yaw-Math.PI/2)*speed; player.z+=Math.cos(yaw-Math.PI/2)*speed; moved=true; }
+  if(keys['KeyD']){ player.x+=Math.sin(yaw+Math.PI/2)*speed; player.z+=Math.cos(yaw+Math.PI/2)*speed; moved=true; }
+
+  if(keys['Space'] && player.y<=GROUND+0.01){ player.vy=0.12; player.isJumping=true; }
+  if(player.isJumping||player.y>GROUND){
+    player.vy-=0.007;
+    player.y+=player.vy;
+    if(player.y<=GROUND){ player.y=GROUND; player.vy=0; player.isJumping=false; }
+  }
+
+  if(playerMesh){
+    playerMesh.position.set(player.x,player.y,player.z);
+    playerMesh.rotation.y=yaw;
+
+    // Walking animation
+    if(moved){
+      const phase=Date.now()*0.008;
+      playerMesh.children.forEach(ch=>{
+        if(ch.name==='head') return;
+        if(ch.isGroup) return;
+      });
+    }
+
+    // Bust physics for female
+    if(charConfig.gender==='female'){
+      bustPhysics.phase+=dt*5;
+      bustPhysics.sway+=dt*3;
+      const bobAmt = moved?0.018:0.005;
+      const swayAmt= moved?0.012:0.003;
+      playerMesh.children.forEach(ch=>{
+        if(ch.name==='bustL'){ ch.position.y=1.15+Math.sin(bustPhysics.phase)*bobAmt; ch.position.x=-0.1+Math.sin(bustPhysics.sway*0.7)*swayAmt; }
+        if(ch.name==='bustR'){ ch.position.y=1.15+Math.sin(bustPhysics.phase+0.3)*bobAmt; ch.position.x=0.1+Math.sin(bustPhysics.sway*0.7+0.3)*swayAmt; }
+      });
+    }
+  }
+
+  posUpdateTimer+=dt;
+  if(posUpdateTimer>0.1){ sendPosition(); posUpdateTimer=0; }
+}
+
+// ── PROXIMITY CHECKS ─────────────────────────────────────────────
+function checkProximity(){
+  // Wardrobe: at house -3.8, -3.5
+  const distWard=Math.hypot(player.x+3.8,player.z+3.5);
+  nearWardrobe=distWard<2.5;
+
+  // Car
+  const distCar=Math.hypot(player.x-carMesh.position.x,player.z-carMesh.position.z);
+  nearCar=distCar<4;
+
+  // Shop
+  const distShop=Math.hypot(player.x-22,player.z+5);
+  nearShop=distShop<6;
+
+  // NPCs
+  nearNPC=null;
+  for(const npc of npcs){
+    const d=Math.hypot(player.x-npc.mesh.position.x,player.z-npc.mesh.position.z);
+    if(d<2.5){ nearNPC=npc; break; }
+  }
+
+  // Prompt
+  const prompt=document.getElementById('prompt');
+  if(nearWardrobe){ prompt.textContent='Press E – Open Wardrobe 👗'; prompt.style.display='block'; }
+  else if(nearNPC){ prompt.textContent='Press F – Talk to '+nearNPC.name+' 💬'; prompt.style.display='block'; }
+  else if(nearCar){ prompt.textContent='Press C – '+(inCar?'Exit':'Enter')+' Car 🚗'; prompt.style.display='block'; }
+  else if(nearShop){ prompt.textContent='Press E – Enter Shop 🛒'; prompt.style.display='block'; }
+  else { prompt.style.display='none'; }
+}
+
+// ── NPC PATROL ───────────────────────────────────────────────────
+function updateNPCs(dt){
+  npcs.forEach(npc=>{
+    if(npc.patrol){
+      npc.walkPhase+=dt*1.8;
+      npc.mesh.position.x=npc.baseX+Math.sin(npc.walkPhase)*3;
+      npc.mesh.position.z=npc.baseZ+Math.cos(npc.walkPhase*0.7)*2;
+      npc.mesh.rotation.y=npc.walkPhase;
+    } else {
+      // Alex follows player
+      const dx=player.x-npc.mesh.position.x, dz=player.z-npc.mesh.position.z;
+      const dist=Math.hypot(dx,dz);
+      if(dist>2.5){
+        npc.mesh.position.x+=dx/dist*0.04;
+        npc.mesh.position.z+=dz/dist*0.04;
+        npc.mesh.rotation.y=Math.atan2(dx,dz);
+      }
+    }
+  });
+}
+
+// ── MINIMAP ──────────────────────────────────────────────────────
+function drawMinimap(){
+  const cv=document.getElementById('mm');
+  const ctx=cv.getContext('2d');
+  const W=130,H=130,S=3;
+  ctx.fillStyle='rgba(10,15,30,0.92)'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#334'; ctx.lineWidth=1; ctx.strokeRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle='rgba(80,80,120,0.3)'; ctx.lineWidth=0.5;
+  for(let i=0;i<W;i+=13){ctx.beginPath();ctx.moveTo(i,0);ctx.lineTo(i,H);ctx.stroke();}
+  for(let i=0;i<H;i+=13){ctx.beginPath();ctx.moveTo(0,i);ctx.lineTo(W,i);ctx.stroke();}
+
+  const cx=W/2-player.x*S, cy=H/2-player.z*S;
+
+  // House
+  ctx.fillStyle='#c8a870'; ctx.fillRect(cx-5*S,cy-5*S,10*S,10*S);
+  // Shop
+  ctx.fillStyle='#ffe4b5'; ctx.fillRect(cx+(22-5)*S*0.4,cy+(-5-5)*S*0.4,8*S*0.4,7*S*0.4);
+
+  // NPCs
+  npcs.forEach(npc=>{
+    ctx.beginPath();
+    ctx.arc(cx+npc.mesh.position.x*S,cy+npc.mesh.position.z*S,3.5,0,Math.PI*2);
+    ctx.fillStyle='#88ccff'; ctx.fill();
+  });
+
+  // Other players
+  for(const pid in otherPlayers){
+    const op=otherPlayers[pid];
+    ctx.beginPath();
+    ctx.arc(cx+op.position.x*S,cy+op.position.z*S,3.5,0,Math.PI*2);
+    ctx.fillStyle='#8de5a1'; ctx.fill();
+  }
+
+  // Car
+  ctx.beginPath();
+  ctx.arc(cx+carMesh.position.x*S,cy+carMesh.position.z*S,3,0,Math.PI*2);
+  ctx.fillStyle='#ff6b6b'; ctx.fill();
+
+  // Player
+  ctx.beginPath();
+  ctx.arc(W/2,H/2,5,0,Math.PI*2);
+  ctx.fillStyle='#ffd400'; ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();
+
+  // Direction arrow
+  ctx.save(); ctx.translate(W/2,H/2); ctx.rotate(-yaw);
+  ctx.fillStyle='#ffd400';
+  ctx.beginPath(); ctx.moveTo(0,-9); ctx.lineTo(-4,0); ctx.lineTo(4,0); ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  // Compass
+  ctx.fillStyle='#ffd400'; ctx.font='bold 11px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('N',W/2,11); ctx.fillStyle='#aaa';
+  ctx.fillText('S',W/2,H-2); ctx.fillText('W',8,H/2+4); ctx.fillText('E',W-7,H/2+4);
+}
+
+// ── MAIN LOOP ────────────────────────────────────────────────────
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.05);
+  updateMovement(dt);
+  updateNPCs(dt);
+  checkProximity();
+  updateCamera();
+  drawMinimap();
+  renderer.render(scene,camera);
+}
+
+// ── RESIZE ──────────────────────────────────────────────────────
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+// ── START ────────────────────────────────────────────────────────
+initThree();
+</script>
+</body>
+</html>
