@@ -1,0 +1,1216 @@
+
+# ============================================================
+# 3D Life Sim Game – Full HTML/JS Builder
+# Writes: index.html, app.py, requirements.txt
+# ============================================================
+
+import os
+
+# ─── GAME HTML ────────────────────────────────────────────────
+GAME_HTML = r'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>LifeSim 3D</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;overflow:hidden;font-family:'Segoe UI',sans-serif;color:#fff;}
+#c{display:block;width:100vw;height:100vh;}
+#hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;}
+#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;}
+#crosshair::before,#crosshair::after{content:'';position:absolute;background:#fff;opacity:.8;}
+#crosshair::before{width:2px;height:20px;left:9px;top:0;}
+#crosshair::after{width:20px;height:2px;top:9px;left:0;}
+#money{position:absolute;top:14px;right:18px;background:rgba(0,0,0,.55);padding:6px 14px;border-radius:8px;font-size:15px;pointer-events:none;}
+#status{position:absolute;bottom:54px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.6);padding:6px 18px;border-radius:10px;font-size:13px;display:none;}
+#prompt{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(30,30,80,.75);padding:5px 16px;border-radius:8px;font-size:13px;display:none;}
+#minimap{position:absolute;bottom:14px;right:14px;width:120px;height:120px;background:rgba(0,0,0,.5);border:1px solid #555;border-radius:6px;pointer-events:none;}
+#cammode{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);padding:4px 12px;border-radius:8px;font-size:12px;}
+#keyhint{position:absolute;top:44px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.4);padding:3px 10px;border-radius:6px;font-size:11px;color:#aaa;}
+.panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a2e;border:1px solid #444;border-radius:14px;padding:26px 32px;z-index:100;min-width:360px;max-width:520px;max-height:90vh;overflow-y:auto;display:none;}
+.panel h2{text-align:center;margin-bottom:18px;color:#a8d8ff;font-size:20px;}
+.panel label{display:block;margin:8px 0 3px;font-size:13px;color:#ccc;}
+.panel input[type=text],.panel select,.panel input[type=range]{width:100%;padding:7px 10px;background:#0d0d1a;border:1px solid #555;border-radius:7px;color:#fff;font-size:13px;}
+.panel input[type=range]{padding:4px 0;}
+.btn{background:linear-gradient(135deg,#4a90d9,#2563eb);color:#fff;border:none;border-radius:8px;padding:9px 22px;cursor:pointer;font-size:14px;margin-top:8px;width:100%;}
+.btn:hover{background:linear-gradient(135deg,#63a8ef,#3b7dd8);}
+.btn-sm{background:#334;color:#adf;border:1px solid #556;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;margin:3px 2px;}
+.btn-sm:hover{background:#445;}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0;}
+.sep{border:none;border-top:1px solid #333;margin:12px 0;}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:center;justify-content:center;}
+#overlay-box{background:#12121f;border:1px solid #334;border-radius:18px;padding:38px 44px;max-width:500px;width:90%;text-align:center;}
+#overlay-box h1{font-size:28px;color:#a8d8ff;margin-bottom:6px;}
+#overlay-box p{color:#888;font-size:13px;margin-bottom:22px;}
+#dialogue{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(10,10,30,.9);border:1px solid #445;border-radius:12px;padding:14px 20px;width:420px;display:none;z-index:50;}
+#dialogue .npc-name{color:#7cf;font-size:13px;margin-bottom:4px;}
+#dialogue .npc-text{font-size:14px;color:#eee;}
+#dialogue .close-btn{position:absolute;top:6px;right:10px;background:none;border:none;color:#888;cursor:pointer;font-size:16px;}
+</style>
+</head>
+<body>
+
+<!-- MAIN MENU -->
+<div id="overlay">
+<div id="overlay-box">
+  <h1>🌍 LifeSim 3D</h1>
+  <p>A full 3D life simulator — explore, socialize, and live!</p>
+  <label style="text-align:left;display:block;color:#ccc;font-size:13px;margin-bottom:4px;">Your Name</label>
+  <input type="text" id="p-name" placeholder="Enter your name…" style="width:100%;padding:9px;background:#0d0d1a;border:1px solid #555;border-radius:8px;color:#fff;font-size:14px;margin-bottom:10px;"/>
+  <label style="text-align:left;display:block;color:#ccc;font-size:13px;margin-bottom:4px;">Gender</label>
+  <select id="p-gender" style="width:100%;padding:9px;background:#0d0d1a;border:1px solid #555;border-radius:8px;color:#fff;font-size:14px;margin-bottom:10px;">
+    <option value="female">Female</option>
+    <option value="male">Male</option>
+  </select>
+  <label style="text-align:left;display:block;color:#ccc;font-size:13px;margin-bottom:4px;">House Type</label>
+  <select id="p-house" style="width:100%;padding:9px;background:#0d0d1a;border:1px solid #555;border-radius:8px;color:#fff;font-size:14px;margin-bottom:10px;">
+    <option value="normal">Normal House</option>
+    <option value="apartment">Apartment</option>
+    <option value="villa">Villa</option>
+    <option value="mansion">Mansion</option>
+  </select>
+  <label style="text-align:left;display:block;color:#ccc;font-size:13px;margin-bottom:4px;">Bust Size (Female)</label>
+  <input type="range" id="p-bust" min="1" max="5" value="3" style="width:100%;margin-bottom:10px;"/>
+  <label style="text-align:left;display:block;color:#ccc;font-size:13px;margin-bottom:6px;">Skin Tone</label>
+  <div style="display:flex;gap:8px;justify-content:center;margin-bottom:12px;" id="skin-row">
+    <div class="skin-swatch" data-color="#FDDBB4" style="width:30px;height:30px;border-radius:50%;background:#FDDBB4;cursor:pointer;border:2px solid transparent;"></div>
+    <div class="skin-swatch" data-color="#F1C27D" style="width:30px;height:30px;border-radius:50%;background:#F1C27D;cursor:pointer;border:2px solid transparent;"></div>
+    <div class="skin-swatch" data-color="#C68642" style="width:30px;height:30px;border-radius:50%;background:#C68642;cursor:pointer;border:2px solid transparent;"></div>
+    <div class="skin-swatch" data-color="#8D5524" style="width:30px;height:30px;border-radius:50%;background:#8D5524;cursor:pointer;border:2px solid transparent;"></div>
+    <div class="skin-swatch" data-color="#4A2912" style="width:30px;height:30px;border-radius:50%;background:#4A2912;cursor:pointer;border:2px solid transparent;"></div>
+  </div>
+  <label style="text-align:left;display:block;color:#ccc;font-size:13px;margin-bottom:4px;">Hair Color</label>
+  <input type="color" id="p-hair" value="#3b1e08" style="width:60px;height:32px;border:none;border-radius:6px;cursor:pointer;margin-bottom:14px;"/>
+  <button style="background:linear-gradient(135deg,#4a90d9,#2563eb);color:#fff;border:none;border-radius:8px;padding:12px 22px;cursor:pointer;font-size:15px;width:100%;" onclick="startGame()">▶ Start Game</button>
+</div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="money">💰 ∞</div>
+  <div id="cammode">📷 3rd Person</div>
+  <div id="keyhint">/ = Actions &nbsp;|&nbsp; E = Wardrobe &nbsp;|&nbsp; F = Talk &nbsp;|&nbsp; C = Car &nbsp;|&nbsp; ] = Mouse Lock &nbsp;|&nbsp; 1/2/3 = Camera</div>
+  <div id="status"></div>
+  <div id="prompt"></div>
+  <div id="minimap"><canvas id="mm" width="120" height="120"></canvas></div>
+</div>
+
+<!-- DIALOGUE -->
+<div id="dialogue">
+  <button class="close-btn" onclick="closeDialogue()">✕</button>
+  <div class="npc-name" id="dlg-name"></div>
+  <div class="npc-text" id="dlg-text"></div>
+</div>
+
+<!-- WARDROBE -->
+<div class="panel" id="wardrobe-panel">
+  <h2>👗 Wardrobe (E)</h2>
+  <div id="wardrobe-content"></div>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('wardrobe-panel')">Close</button>
+</div>
+
+<!-- SHOP -->
+<div class="panel" id="shop-panel">
+  <h2>🛒 Shop (∞ Money)</h2>
+  <div id="shop-content"></div>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('shop-panel')">Close</button>
+</div>
+
+<!-- ACTIONS MENU (/) -->
+<div class="panel" id="actions-panel">
+  <h2>⚡ Actions <span style="font-size:12px;color:#666;">(/ to close)</span></h2>
+  <div class="row" style="justify-content:center;">
+    <button class="btn-sm" onclick="doAction('sleep')">😴 Sleep</button>
+    <button class="btn-sm" onclick="doAction('eat')">🍔 Eat</button>
+    <button class="btn-sm" onclick="doAction('drink')">💧 Drink</button>
+    <button class="btn-sm" onclick="doAction('smoke')">🚬 Smoke</button>
+    <button class="btn-sm" onclick="doAction('alcohol')">🍺 Alcohol</button>
+    <button class="btn-sm" onclick="doAction('game')">🎮 Game</button>
+    <button class="btn-sm" onclick="openPanel('phone-panel')">📱 Phone</button>
+    <button class="btn-sm" onclick="openPanel('family-panel')">👨‍👩‍👧 Family</button>
+    <button class="btn-sm" onclick="openPanel('tech-panel')">🖥️ Tech Setup</button>
+    <button class="btn-sm" onclick="openPanel('pool-panel')">🏊 Pool</button>
+    <button class="btn-sm" onclick="openPanel('room-panel')">🏗️ Add Room</button>
+    <button class="btn-sm" onclick="doAction('school')">🏫 School</button>
+    <button class="btn-sm" onclick="doAction('outside')">🌳 Outside</button>
+    <button class="btn-sm" onclick="doAction('door')">🔒 Lock Door</button>
+    <button class="btn-sm" onclick="doAction('children')">👶 Make Child</button>
+    <button class="btn-sm" onclick="doAction('swim')">🏊 Swim</button>
+    <button class="btn-sm" onclick="doAction('sit')">💺 Sit</button>
+    <button class="btn-sm" onclick="doAction('walk')">🚶 Walk Mode</button>
+    <button class="btn-sm" onclick="doAction('run')">🏃 Run Mode</button>
+  </div>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('actions-panel')">Close</button>
+</div>
+
+<!-- TECH -->
+<div class="panel" id="tech-panel">
+  <h2>🖥️ Tech Setup</h2>
+  <label>Device</label>
+  <select id="tech-device" style="width:100%;padding:7px;background:#0d0d1a;border:1px solid #555;border-radius:7px;color:#fff;margin-bottom:8px;">
+    <option>Gaming PC</option><option>Laptop</option><option>MacBook</option>
+  </select>
+  <label>Screens</label>
+  <select id="tech-screens" style="width:100%;padding:7px;background:#0d0d1a;border:1px solid #555;border-radius:7px;color:#fff;margin-bottom:8px;">
+    <option>1 Screen</option><option>2 Screens</option><option>3 Screens</option>
+  </select>
+  <label>Console</label>
+  <select id="tech-console" style="width:100%;padding:7px;background:#0d0d1a;border:1px solid #555;border-radius:7px;color:#fff;margin-bottom:8px;">
+    <option>None</option><option>PS5</option><option>Xbox Series X</option><option>Nintendo Switch</option>
+  </select>
+  <button class="btn" onclick="applyTech()">✅ Apply Setup</button>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('tech-panel')">Close</button>
+</div>
+
+<!-- POOL -->
+<div class="panel" id="pool-panel">
+  <h2>🏊 Swimming Pool</h2>
+  <label>Depth: <span id="pool-depth-val">2m</span></label>
+  <input type="range" id="pool-depth" min="1" max="5" value="2" oninput="document.getElementById('pool-depth-val').textContent=this.value+'m'"/>
+  <label>Shape</label>
+  <select id="pool-shape" style="width:100%;padding:7px;background:#0d0d1a;border:1px solid #555;border-radius:7px;color:#fff;margin-bottom:8px;">
+    <option>Rectangle</option><option>L-Shape</option><option>Oval</option><option>Freeform</option>
+  </select>
+  <button class="btn" onclick="buildPool()">🏗️ Build Pool</button>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('pool-panel')">Close</button>
+</div>
+
+<!-- ROOM BUILDER -->
+<div class="panel" id="room-panel">
+  <h2>🏗️ Add Room</h2>
+  <label>Room Type</label>
+  <select id="room-type" style="width:100%;padding:7px;background:#0d0d1a;border:1px solid #555;border-radius:7px;color:#fff;margin-bottom:8px;">
+    <option>Bedroom</option><option>Bathroom</option><option>Office</option><option>Gym</option><option>Cinema</option>
+  </select>
+  <button class="btn" onclick="addRoom()">➕ Add Room</button>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('room-panel')">Close</button>
+</div>
+
+<!-- FAMILY -->
+<div class="panel" id="family-panel">
+  <h2>👨‍👩‍👧 Family</h2>
+  <div id="family-list" style="margin-bottom:10px;font-size:13px;color:#9cf;"></div>
+  <hr class="sep"/>
+  <label>Name</label>
+  <input type="text" id="fam-name" placeholder="Name…"/>
+  <label>Role</label>
+  <select id="fam-role" style="width:100%;padding:7px;background:#0d0d1a;border:1px solid #555;border-radius:7px;color:#fff;margin:8px 0;">
+    <option>Partner</option><option>Child</option><option>Parent</option>
+  </select>
+  <button class="btn" onclick="addFamilyMember()">Add Member</button>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('family-panel')">Close</button>
+</div>
+
+<!-- PHONE -->
+<div class="panel" id="phone-panel">
+  <h2>📱 Phone</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+    <button class="btn-sm" onclick="phoneAction('Call')">📞 Call</button>
+    <button class="btn-sm" onclick="phoneAction('Chat')">💬 Chat</button>
+    <button class="btn-sm" onclick="phoneAction('Social Media')">📸 Social</button>
+    <button class="btn-sm" onclick="phoneAction('Maps')">🗺️ Maps</button>
+  </div>
+  <div id="phone-output" style="margin-top:12px;font-size:13px;color:#9cf;min-height:40px;"></div>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('phone-panel')">Close</button>
+</div>
+
+<canvas id="c"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════
+//  LifeSim 3D – Full Game Engine
+// ═══════════════════════════════════════════════════
+
+// ── State ──────────────────────────────────────────
+const state = {
+  name:'Player', gender:'female', skinColor:'#F1C27D', hairColor:'#3b1e08',
+  bustSize:3, houseType:'normal',
+  clothes:{ bra:true, slip:true, underwear:true, tshirt:true, top:false,
+            sexypack:false, shorts:false, pants:true, shoes:true, socks:true, coat:false },
+  family:[], tech:{ device:'Gaming PC', screens:1, console:'None' },
+  pool:null, rooms:[], doorLocked:false,
+  moveMode:'walk', inCar:false, camMode:3,
+  bustPhase:0
+};
+
+// ── Skin swatches ───────────────────────────────────
+let selectedSkin = '#F1C27D';
+document.querySelectorAll('.skin-swatch').forEach(s=>{
+  s.addEventListener('click',()=>{
+    document.querySelectorAll('.skin-swatch').forEach(x=>x.style.borderColor='transparent');
+    s.style.borderColor='#fff';
+    selectedSkin = s.dataset.color;
+  });
+});
+
+// ── Three.js core ───────────────────────────────────
+const renderer = new THREE.WebGLRenderer({canvas:document.getElementById('c'),antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 40, 120);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 200);
+camera.position.set(0, 5, 10);
+
+window.addEventListener('resize',()=>{
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+// ── Lights ──────────────────────────────────────────
+const sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
+sun.position.set(30, 50, 20);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near = 0.5;
+sun.shadow.camera.far = 200;
+sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
+sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
+scene.add(sun);
+scene.add(new THREE.AmbientLight(0x6688bb, 0.5));
+const hemi = new THREE.HemisphereLight(0x87ceeb, 0x3a5f0b, 0.4);
+scene.add(hemi);
+
+// ── Helpers ─────────────────────────────────────────
+function box(w,h,d,color,x,y,z,castShadow=true,receiveShadow=true){
+  const m = new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshLambertMaterial({color})
+  );
+  m.position.set(x,y,z);
+  m.castShadow=castShadow; m.receiveShadow=receiveShadow;
+  scene.add(m); return m;
+}
+function cyl(rt,rb,h,seg,color,x,y,z){
+  const m = new THREE.Mesh(
+    new THREE.CylinderGeometry(rt,rb,h,seg),
+    new THREE.MeshLambertMaterial({color})
+  );
+  m.position.set(x,y,z); m.castShadow=true;
+  scene.add(m); return m;
+}
+function label3D(text,x,y,z){
+  // Billboard label via sprite
+  const canvas2=document.createElement('canvas');
+  canvas2.width=256; canvas2.height=64;
+  const ctx=canvas2.getContext('2d');
+  ctx.fillStyle='rgba(0,0,0,0.6)';
+  ctx.roundRect?ctx.roundRect(2,2,252,60,8):ctx.fillRect(2,2,252,60);
+  ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font='bold 20px Segoe UI'; ctx.textAlign='center';
+  ctx.fillText(text,128,36);
+  const tex=new THREE.CanvasTexture(canvas2);
+  const sprite=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true}));
+  sprite.position.set(x,y,z); sprite.scale.set(4,1,1);
+  scene.add(sprite); return sprite;
+}
+
+// ── Ground ───────────────────────────────────────────
+const ground = box(200,0.2,200,0x4a7c2f,0,-0.1,0,false,true);
+// Road
+box(6,0.21,200,0x333333,0,-0.05,0,false,true);
+box(200,0.21,6,0x333333,0,-0.05,0,false,true);
+// Pavement
+box(2,0.22,200,0x888888,4,-0.05,0,false,false);
+box(2,0.22,200,0x888888,-4,-0.05,0,false,false);
+
+// ── House ────────────────────────────────────────────
+function buildHouse(type){
+  const scale = type==='mansion'?1.8 : type==='villa'?1.5 : type==='apartment'?1.2 : 1;
+  const w=10*scale, h=6*scale, d=10*scale;
+  const hx=15, hy=h/2, hz=0;
+  // Walls
+  box(w,h,d,0xf0e6d0,hx,hy,hz);
+  // Roof
+  const roofGeo = new THREE.ConeGeometry(w*0.75,h*0.5,4);
+  const roof = new THREE.Mesh(roofGeo,new THREE.MeshLambertMaterial({color:0x8b3a3a}));
+  roof.position.set(hx,h+h*0.25,hz); roof.rotation.y=Math.PI/4;
+  roof.castShadow=true; scene.add(roof);
+  // Floor inside
+  box(w-0.4,0.1,d-0.4,0xc4a265,hx,0.05,hz,false,true);
+  // Windows
+  box(1.2,1.2,0.1,0x88ccff,hx-2,h*0.55,hz+d/2+0.05);
+  box(1.2,1.2,0.1,0x88ccff,hx+2,h*0.55,hz+d/2+0.05);
+  // Door opening (dark box)
+  box(1.5,2.5,0.15,0x5c3a1a,hx,1.25,hz+d/2+0.06);
+  // Door frame
+  box(1.7,2.7,0.1,0x8b6914,hx,1.35,hz+d/2+0.07);
+
+  // ── Interior furniture ──────────────────────────────
+  // Sofa
+  box(3,0.5,1,0x6464a0,hx-1,0.25,hz-2); // seat
+  box(3,0.8,0.3,0x6464a0,hx-1,0.65,hz-2.55); // back
+  // Coffee table
+  box(1.2,0.1,0.6,0x8b6914,hx-1,0.35,hz-1);
+  // TV stand
+  box(2,0.5,0.4,0x2a2a2a,hx+3,0.25,hz-3.5);
+  // TV
+  box(2,1.2,0.1,0x111111,hx+3,0.85,hz-3.62);
+  // TV screen glow
+  const tvScreen=box(1.8,1.0,0.05,0x1a3a6a,hx+3,0.85,hz-3.63);
+  // Kitchen table
+  box(2,0.05,1,0x8b6914,hx-3,0.8,hz+2);
+  box(0.1,0.8,0.1,0x5c3a1a,hx-3.8,0.4,hz+2.4); // leg
+  box(0.1,0.8,0.1,0x5c3a1a,hx-2.2,0.4,hz+2.4);
+  box(0.1,0.8,0.1,0x5c3a1a,hx-3.8,0.4,hz+1.6);
+  box(0.1,0.8,0.1,0x5c3a1a,hx-2.2,0.4,hz+1.6);
+  // Chairs
+  box(0.8,0.05,0.8,0x5c3a1a,hx-3.8,0.5,hz+2); box(0.8,0.4,0.1,0x5c3a1a,hx-3.8,0.7,hz+2.4);
+  box(0.8,0.05,0.8,0x5c3a1a,hx-2.2,0.5,hz+2); box(0.8,0.4,0.1,0x5c3a1a,hx-2.2,0.7,hz+2.4);
+  // Fridge
+  box(0.8,2,0.7,0xdddddd,hx+4,1,hz+3.5);
+  // Bed
+  box(2,0.4,3.5,0x8080a0,hx-3,0.2,hz-3.5);
+  box(2,0.6,0.4,0x4a4a7a,hx-3,0.5,hz-5.1); // headboard
+  // Pillow
+  box(0.7,0.15,0.5,0xfff0f0,hx-3.3,0.45,hz-4.8);
+  box(0.7,0.15,0.5,0xfff0f0,hx-2.7,0.45,hz-4.8);
+  // Wardrobe (brown = E key trigger)
+  const wardrobeObj = box(1.2,2,0.6,0x6b3a2a,hx+4,1,hz);
+  wardrobeObj.userData.isWardrobe=true;
+  wardrobeObj.userData.worldPos=new THREE.Vector3(hx+4,1,hz);
+  scene.userData.wardrobe=wardrobeObj;
+  // Staircase (simple steps)
+  for(let i=0;i<5;i++) box(1,0.3+i*0.3,0.5,0xc4a265,hx+3,0.15+i*0.15,hz+d/2-1-i*0.5);
+  label3D('🏠 '+type.toUpperCase(),hx,h+h*0.6+0.5,hz);
+}
+
+let playerObj;
+let bustMeshL, bustMeshR;
+
+// ── Build Player Mesh ────────────────────────────────
+function buildPlayer(){
+  const skinHex = parseInt(selectedSkin.replace('#',''),16);
+  // Body group
+  playerObj = new THREE.Group();
+
+  // Torso
+  const torso = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8,1.0,0.4),
+    new THREE.MeshLambertMaterial({color:state.clothes.tshirt?0x4488cc:skinHex})
+  );
+  torso.position.y=1.1; torso.castShadow=true;
+  playerObj.add(torso);
+
+  // Head
+  const head = new THREE.Mesh(
+    new THREE.SphereGeometry(0.28,12,10),
+    new THREE.MeshLambertMaterial({color:skinHex})
+  );
+  head.position.y=1.9; head.castShadow=true;
+  playerObj.add(head);
+
+  // Hair
+  const hairHex = parseInt(state.hairColor.replace('#',''),16);
+  const hair = new THREE.Mesh(
+    new THREE.SphereGeometry(0.30,10,8,0,Math.PI*2,0,Math.PI*0.5),
+    new THREE.MeshLambertMaterial({color:hairHex})
+  );
+  hair.position.y=2.0; playerObj.add(hair);
+
+  // Eyes
+  [-0.1,0.1].forEach(x=>{
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.04,6,6),new THREE.MeshLambertMaterial({color:0x222222}));
+    eye.position.set(x,1.93,0.26); playerObj.add(eye);
+  });
+
+  // Legs
+  const legColor = state.clothes.pants?0x334466:skinHex;
+  [-0.2,0.2].forEach(x=>{
+    const leg=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.8,0.3),new THREE.MeshLambertMaterial({color:legColor}));
+    leg.position.set(x,0.4,0); leg.castShadow=true; playerObj.add(leg);
+  });
+
+  // Arms
+  [-0.55,0.55].forEach(x=>{
+    const arm=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.8,0.22),new THREE.MeshLambertMaterial({color:skinHex}));
+    arm.position.set(x,1.05,0); arm.castShadow=true; playerObj.add(arm);
+  });
+
+  // Bust (female only)
+  if(state.gender==='female'){
+    const bs = 0.08 + state.bustSize*0.04;
+    [-0.2,0.2].forEach((x,i)=>{
+      const bust=new THREE.Mesh(
+        new THREE.SphereGeometry(bs,8,6),
+        new THREE.MeshLambertMaterial({color:skinHex})
+      );
+      bust.position.set(x,1.18,0.22);
+      if(i===0) bustMeshL=bust; else bustMeshR=bust;
+      playerObj.add(bust);
+    });
+  }
+
+  // Shoes
+  if(state.clothes.shoes){
+    [-0.2,0.2].forEach(x=>{
+      const shoe=new THREE.Mesh(new THREE.BoxGeometry(0.32,0.12,0.45),new THREE.MeshLambertMaterial({color:0x222222}));
+      shoe.position.set(x,0.0,0.05); playerObj.add(shoe);
+    });
+  }
+
+  playerObj.position.set(12,0,0);
+  playerObj.castShadow=true;
+  scene.add(playerObj);
+}
+
+// ── NPCs ─────────────────────────────────────────────
+const npcs=[];
+function spawnNPC(name,x,z,color,role,dialogue){
+  const g=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.BoxGeometry(0.7,1.0,0.35),new THREE.MeshLambertMaterial({color}));
+  body.position.y=1.1; body.castShadow=true; g.add(body);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(0.25,10,8),new THREE.MeshLambertMaterial({color:0xF1C27D}));
+  head.position.y=1.85; g.add(head);
+  [-0.15,0.15].forEach(lx=>{
+    const leg=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.7,0.25),new THREE.MeshLambertMaterial({color:0x3355aa}));
+    leg.position.set(lx,0.35,0); g.add(leg);
+  });
+  g.position.set(x,0,z);
+  g.castShadow=true;
+  scene.add(g);
+  label3D(name,x,2.6,z);
+  npcs.push({mesh:g,name,role,dialogue,dlgIdx:0,patrolAngle:Math.random()*Math.PI*2,companion:role==='companion'});
+  return g;
+}
+
+// Spawn NPCs
+spawnNPC('Sam',40,5,0xcc6633,'shopkeeper',[
+  'Welcome to the shop! Everything is free!',
+  'Come back anytime, we have it all.',
+  'Looking for something? Just ask!',
+  'Have a great day! Spend freely!'
+]);
+spawnNPC('Mrs. Chen',60,10,0x9966cc,'teacher',[
+  'Class starts at 9am sharp!',
+  'Education is the key to success.',
+  'Have you done your homework?',
+  'The school is always open for you.'
+]);
+spawnNPC('Tommy',60,8,0xff9966,'child',[
+  'Hey! Wanna play?',
+  'I love LifeSim 3D!',
+  'Can we be friends?',
+  'Look what I found!'
+]);
+spawnNPC('Alex',18,2,0x66aaff,'companion',[
+  'I\'ll follow you wherever you go!',
+  'What should we do next?',
+  'I\'m always here for you!',
+  'Lead the way, I\'m right behind you.',
+  'This place is amazing!'
+]);
+
+// ── Shop building ────────────────────────────────────
+box(12,5,10,0xddcc88,40,2.5,5);
+box(12,0.1,10,0xbbaa66,40,5.05,5);
+const shopRoof=new THREE.Mesh(new THREE.BoxGeometry(13,0.3,11),new THREE.MeshLambertMaterial({color:0x994422}));
+shopRoof.position.set(40,5.2,5); scene.add(shopRoof);
+box(2,3,0.1,0x88ccff,40,1.5,10.06);
+label3D('🛒 SHOP',40,6.2,5);
+
+// ── School building ──────────────────────────────────
+box(14,6,12,0xddddbb,60,3,10);
+box(14,0.1,12,0xcccc99,60,6.05,10);
+label3D('🏫 SCHOOL',60,7.2,10);
+box(2,3,0.1,0x88ccff,60,1.5,16.06);
+
+// ── Trees ────────────────────────────────────────────
+[[5,5],[5,-5],[-5,10],[-10,5],[25,5],[25,-5],[-8,-8],[10,15]].forEach(([tx,tz])=>{
+  cyl(0,0.6,3,6,0x3a6e1a,tx,1.5,tz);
+  cyl(1.5,1.5,2.5,6,0x2d5a14,tx,4,tz);
+});
+
+// ── Fences ───────────────────────────────────────────
+for(let i=-25;i<=25;i+=3){
+  box(0.1,1,0.1,0x8b6914,i,0.5,25);
+  box(0.1,1,0.1,0x8b6914,i,0.5,-25);
+  box(0.1,1,0.1,0x8b6914,25,0.5,i);
+  box(0.1,1,0.1,0x8b6914,-25,0.5,i);
+}
+
+// ── Car ──────────────────────────────────────────────
+const car=new THREE.Group();
+const carBody=new THREE.Mesh(new THREE.BoxGeometry(2.2,0.8,4.5),new THREE.MeshLambertMaterial({color:0x2255cc}));
+carBody.position.y=0.5; carBody.castShadow=true; car.add(carBody);
+const carTop=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.7,2.5),new THREE.MeshLambertMaterial({color:0x1144aa}));
+carTop.position.set(0,1.15,0.3); car.add(carTop);
+// Windshield
+const wind=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.6,0.1),new THREE.MeshLambertMaterial({color:0x88ccff,transparent:true,opacity:0.5}));
+wind.position.set(0,1.1,1.56); car.add(wind);
+// Wheels
+[[-1.2,0,1.5],[1.2,0,1.5],[-1.2,0,-1.5],[1.2,0,-1.5]].forEach(([wx,wy,wz])=>{
+  const wheel=new THREE.Mesh(new THREE.CylinderGeometry(0.4,0.4,0.3,16),new THREE.MeshLambertMaterial({color:0x111111}));
+  wheel.rotation.z=Math.PI/2; wheel.position.set(wx,0.4,wz); car.add(wheel);
+});
+// Headlights
+[[0.6,0.55,2.3],[-0.6,0.55,2.3]].forEach(([lx,ly,lz])=>{
+  const hl=new THREE.Mesh(new THREE.SphereGeometry(0.12,6,6),new THREE.MeshLambertMaterial({color:0xffffcc,emissive:0xffffaa}));
+  hl.position.set(lx,ly,lz); car.add(hl);
+});
+car.position.set(8,0,5);
+car.castShadow=true;
+scene.add(car);
+
+// ── Pool (placeholder, built on demand) ─────────────
+let poolMesh=null;
+
+// ── Controls ─────────────────────────────────────────
+const keys={};
+document.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(e.code==='BracketRight') togglePointerLock();
+  if(e.code==='Slash'){ e.preventDefault(); toggleActions(); }
+  if(e.code==='KeyE') tryWardrobe();
+  if(e.code==='KeyF') tryTalk();
+  if(e.code==='KeyC') toggleCar();
+  if(e.code==='Digit1') setCam(1);
+  if(e.code==='Digit2') setCam(2);
+  if(e.code==='Digit3') setCam(3);
+  if(e.code==='Quote') doAction('interact'); // ' key
+});
+document.addEventListener('keyup',e=>{ keys[e.code]=false; });
+
+// ── Pointer Lock ─────────────────────────────────────
+let yaw=0, pitch=0, locked=false;
+function togglePointerLock(){
+  if(!locked) document.getElementById('c').requestPointerLock();
+  else document.exitPointerLock();
+}
+document.addEventListener('pointerlockchange',()=>{
+  locked=!!document.pointerLockElement;
+});
+document.addEventListener('mousemove',e=>{
+  if(!locked) return;
+  yaw   -= e.movementX*0.002;
+  pitch -= e.movementY*0.002;
+  pitch = Math.max(-1.1,Math.min(0.9,pitch));
+});
+
+// ── Camera modes ─────────────────────────────────────
+const camModeNames=['','📷 1st Person','📷 2nd Person','📷 3rd Person'];
+function setCam(n){ state.camMode=n; document.getElementById('cammode').textContent=camModeNames[n]; }
+
+// ── Speed ─────────────────────────────────────────────
+const moveSpeed={walk:0.06, run:0.13, sprint:0.18};
+
+// ── Game loop ─────────────────────────────────────────
+let started=false;
+const clock=new THREE.Clock();
+const _carDir=new THREE.Vector3();
+const _v3=new THREE.Vector3();
+
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=clock.getDelta();
+  if(!started){ renderer.render(scene,camera); return; }
+
+  const spd = keys['ShiftLeft']||keys['ShiftRight'] ? moveSpeed.sprint : moveSpeed[state.moveMode];
+
+  // Player/Car movement
+  if(state.inCar){
+    // Car driving
+    if(keys['KeyW']||keys['ArrowUp'])   { car.translateZ(spd*2.5); }
+    if(keys['KeyS']||keys['ArrowDown']) { car.translateZ(-spd*1.5); }
+    if(keys['KeyA']||keys['ArrowLeft']) { car.rotation.y+=0.03; }
+    if(keys['KeyD']||keys['ArrowRight']){ car.rotation.y-=0.03; }
+    playerObj.position.copy(car.position);
+    playerObj.position.y=0;
+  } else {
+    // Foot movement
+    const dir=new THREE.Vector3();
+    if(keys['KeyW']||keys['ArrowUp'])   dir.z=-1;
+    if(keys['KeyS']||keys['ArrowDown']) dir.z= 1;
+    if(keys['KeyA']||keys['ArrowLeft']) dir.x=-1;
+    if(keys['KeyD']||keys['ArrowRight'])dir.x= 1;
+    if(dir.length()>0){
+      dir.normalize().applyEuler(new THREE.Euler(0,yaw,0));
+      playerObj.position.addScaledVector(dir,spd);
+      playerObj.rotation.y=yaw+Math.PI;
+      // Bust bob
+      if(state.gender==='female'){
+        state.bustPhase+=dt*6;
+        const bobY=Math.sin(state.bustPhase)*0.04;
+        const bobX=Math.cos(state.bustPhase*0.5)*0.02;
+        if(bustMeshL){ bustMeshL.position.y=1.18+bobY; bustMeshL.position.x=-0.2+bobX; }
+        if(bustMeshR){ bustMeshR.position.y=1.18+bobY; bustMeshR.position.x= 0.2-bobX; }
+      }
+    }
+    // Jump
+    if(keys['Space'] && playerObj.position.y<0.05){
+      playerObj.position.y=0.8;
+      setTimeout(()=>{ playerObj.position.y=0; },400);
+    }
+  }
+
+  // Camera follow
+  const pPos=state.inCar?car.position:playerObj.position;
+  if(state.camMode===1){
+    // 1st person: camera at head
+    camera.position.set(pPos.x,pPos.y+1.85,pPos.z);
+    camera.rotation.order='YXZ';
+    camera.rotation.y=yaw;
+    camera.rotation.x=pitch;
+  } else if(state.camMode===2){
+    // 2nd person: facing player
+    camera.position.set(pPos.x+Math.sin(yaw)*4,pPos.y+3,pPos.z+Math.cos(yaw)*4);
+    camera.lookAt(pPos.x,pPos.y+1.2,pPos.z);
+  } else {
+    // 3rd person: behind player
+    camera.position.set(
+      pPos.x-Math.sin(yaw)*6,
+      pPos.y+3.5+pitch*3,
+      pPos.z-Math.cos(yaw)*6
+    );
+    camera.lookAt(pPos.x,pPos.y+1.2,pPos.z);
+  }
+
+  // NPC patrol + companion
+  npcs.forEach(npc=>{
+    if(npc.companion){
+      const dx=pPos.x-npc.mesh.position.x;
+      const dz=pPos.z-npc.mesh.position.z;
+      const dist=Math.sqrt(dx*dx+dz*dz);
+      if(dist>3){
+        npc.mesh.position.x+=dx/dist*0.04;
+        npc.mesh.position.z+=dz/dist*0.04;
+        npc.mesh.rotation.y=Math.atan2(dx,dz);
+      }
+    } else {
+      npc.patrolAngle+=0.005;
+      const cx=npc.mesh.position.x+Math.sin(npc.patrolAngle)*0.05;
+      const cz=npc.mesh.position.z+Math.cos(npc.patrolAngle)*0.05;
+      npc.mesh.position.x=cx;
+      npc.mesh.position.z=cz;
+      npc.mesh.rotation.y=npc.patrolAngle;
+    }
+  });
+
+  // Proximity prompts
+  updatePrompts(pPos);
+
+  // Minimap
+  drawMinimap(pPos);
+
+  renderer.render(scene,camera);
+}
+
+// ── Proximity ────────────────────────────────────────
+function updatePrompts(pPos){
+  const prompts=[];
+  // Wardrobe
+  const w=scene.userData.wardrobe;
+  if(w){
+    const d=pPos.distanceTo(w.userData.worldPos||w.position);
+    if(d<3) prompts.push('[E] Open Wardrobe');
+  }
+  // NPCs
+  npcs.forEach(npc=>{
+    const d=pPos.distanceTo(npc.mesh.position);
+    if(d<3) prompts.push('[F] Talk to '+npc.name);
+  });
+  // Car
+  if(pPos.distanceTo(car.position)<4 && !state.inCar) prompts.push('[C] Enter Car');
+  if(state.inCar) prompts.push('[C] Exit Car');
+  // Shop
+  if(Math.abs(pPos.x-40)<7 && Math.abs(pPos.z-5)<6) prompts.push('[E] Enter Shop');
+  // School
+  if(Math.abs(pPos.x-60)<8 && Math.abs(pPos.z-10)<7) prompts.push('[E] Enter School');
+
+  const el=document.getElementById('prompt');
+  if(prompts.length){ el.style.display='block'; el.textContent=prompts.join('  |  '); }
+  else el.style.display='none';
+}
+
+// ── Minimap ───────────────────────────────────────────
+const mmCtx=document.getElementById('mm').getContext('2d');
+function drawMinimap(pPos){
+  mmCtx.clearRect(0,0,120,120);
+  mmCtx.fillStyle='rgba(0,30,0,0.8)';
+  mmCtx.fillRect(0,0,120,120);
+  const scale=120/80;
+  const ox=60-pPos.x*scale, oz=60-pPos.z*scale;
+  // Buildings
+  mmCtx.fillStyle='#888';
+  mmCtx.fillRect(15*scale+ox-5,0*scale+oz-5,10*scale,10*scale); // house
+  mmCtx.fillStyle='#aa8';
+  mmCtx.fillRect(36*scale+ox-6,0*scale+oz-5,12*scale,10*scale); // shop
+  mmCtx.fillStyle='#aab';
+  mmCtx.fillRect(53*scale+ox-7,5*scale+oz-6,14*scale,12*scale); // school
+  // Road
+  mmCtx.fillStyle='#444';
+  mmCtx.fillRect(ox-3,0,6,120);
+  mmCtx.fillRect(0,oz-3,120,6);
+  // Car
+  mmCtx.fillStyle='#44f';
+  const cx=car.position.x*scale+ox, cz=car.position.z*scale+oz;
+  mmCtx.fillRect(cx-4,cz-4,8,8);
+  // NPCs
+  mmCtx.fillStyle='#fa0';
+  npcs.forEach(npc=>{
+    const nx=npc.mesh.position.x*scale+ox, nz=npc.mesh.position.z*scale+oz;
+    mmCtx.beginPath(); mmCtx.arc(nx,nz,3,0,Math.PI*2); mmCtx.fill();
+  });
+  // Player
+  mmCtx.fillStyle='#0f0';
+  const px=pPos.x*scale+ox, pz=pPos.z*scale+oz;
+  mmCtx.beginPath(); mmCtx.arc(px,pz,5,0,Math.PI*2); mmCtx.fill();
+  mmCtx.strokeStyle='#0f0'; mmCtx.lineWidth=1.5;
+  mmCtx.beginPath();
+  mmCtx.moveTo(px,pz);
+  mmCtx.lineTo(px-Math.sin(yaw)*10,pz-Math.cos(yaw)*10);
+  mmCtx.stroke();
+}
+
+// ── Actions ───────────────────────────────────────────
+const actionMessages={
+  sleep:'😴 You fell asleep... sweet dreams!',
+  eat:'🍔 Yum! You ate a delicious meal.',
+  drink:'💧 Refreshing! You drank some water.',
+  smoke:'🚬 You lit a cigarette...',
+  alcohol:'🍺 You drank some alcohol. Cheers!',
+  game:'🎮 You sat down and started gaming!',
+  school:'🏫 You headed to school.',
+  outside:'🌳 You went outside for some fresh air.',
+  door:'🔒 Door ' + (state.doorLocked?'unlocked':'locked') + '!',
+  children:'👶 A new child NPC has joined your family!',
+  swim:'🏊 You jumped in the pool!',
+  sit:'💺 You sat down to relax.',
+  walk:'🚶 Walk mode on.',
+  run:'🏃 Run mode on.',
+  interact:'💬 You interacted!'
+};
+
+function doAction(action){
+  if(action==='door'){ state.doorLocked=!state.doorLocked; }
+  if(action==='walk'){ state.moveMode='walk'; }
+  if(action==='run')  { state.moveMode='run'; }
+  if(action==='children'){ addFamilyMemberDirect('Baby','Child'); }
+  showStatus(actionMessages[action]||'✅ Done!');
+  closePanel('actions-panel');
+}
+
+function showStatus(msg,dur=3000){
+  const el=document.getElementById('status');
+  el.style.display='block'; el.textContent=msg;
+  clearTimeout(showStatus._t);
+  showStatus._t=setTimeout(()=>el.style.display='none',dur);
+}
+
+// ── Toggle Actions ────────────────────────────────────
+function toggleActions(){
+  const p=document.getElementById('actions-panel');
+  if(p.style.display==='block') closePanel('actions-panel');
+  else openPanel('actions-panel');
+}
+
+// ── Wardrobe ──────────────────────────────────────────
+function tryWardrobe(){
+  const pPos=playerObj?playerObj.position:new THREE.Vector3();
+  const w=scene.userData.wardrobe;
+  if(!w){ openPanel('wardrobe-panel'); return; }
+  const d=pPos.distanceTo(w.userData.worldPos||w.position);
+  if(d<4) openPanel('wardrobe-panel');
+  else showStatus('Walk closer to the wardrobe first!');
+  // Also check shop
+  if(Math.abs(pPos.x-40)<7 && Math.abs(pPos.z-5)<6) openPanel('shop-panel');
+}
+
+function buildWardrobeUI(){
+  const items=[
+    {key:'bra',label:'👙 Bra (BH)'},
+    {key:'slip',label:'👗 Slip / Dress'},
+    {key:'underwear',label:'🩲 Underwear'},
+    {key:'tshirt',label:'👕 T-Shirt'},
+    {key:'top',label:'🩱 Top'},
+    {key:'sexypack',label:'✨ Sexy Pack'},
+    {key:'shorts',label:'🩳 Shorts'},
+    {key:'pants',label:'👖 Pants / Broek'},
+    {key:'shoes',label:'👟 Shoes'},
+    {key:'socks',label:'🧦 Socks / Kousen'},
+    {key:'coat',label:'🧥 Coat'}
+  ];
+  let html='<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">';
+  items.forEach(it=>{
+    const on=state.clothes[it.key];
+    html+=`<button class="btn-sm" id="w-${it.key}" style="background:${on?'#1e5f3a':'#334'};" onclick="toggleCloth('${it.key}')">${it.label} ${on?'✅':'❌'}</button>`;
+  });
+  html+='</div>';
+  if(state.gender==='female'){
+    html+=`<hr class="sep"/><label>Bust Size: <span id="bust-label">${state.bustSize}</span></label>
+    <input type="range" id="bust-slider" min="1" max="5" value="${state.bustSize}" oninput="changeBust(this.value)" style="width:100%;"/>`;
+  }
+  document.getElementById('wardrobe-content').innerHTML=html;
+}
+
+function toggleCloth(key){
+  state.clothes[key]=!state.clothes[key];
+  buildWardrobeUI();
+  showStatus((state.clothes[key]?'✅ Wearing ':'❌ Removed ')+key);
+}
+function changeBust(v){
+  state.bustSize=parseInt(v);
+  document.getElementById('bust-label').textContent=v;
+  // Update bust mesh size
+  if(bustMeshL&&bustMeshR){
+    const bs=0.08+state.bustSize*0.04;
+    bustMeshL.scale.setScalar(bs/0.2);
+    bustMeshR.scale.setScalar(bs/0.2);
+  }
+}
+
+// ── Shop ──────────────────────────────────────────────
+function buildShopUI(){
+  const items=[
+    {name:'Pizza 🍕',desc:'Restore hunger'},
+    {name:'Coffee ☕',desc:'Energy boost'},
+    {name:'Beer 🍺',desc:'Relax'},
+    {name:'Gaming Chair 🪑',desc:'For your setup'},
+    {name:'PS5 🎮',desc:'Gaming console'},
+    {name:'Sneakers 👟',desc:'Stylish shoes'},
+    {name:'Sunglasses 😎',desc:'Look cool'},
+    {name:'Laptop 💻',desc:'Work anywhere'},
+    {name:'Flowers 🌸',desc:'For someone special'},
+    {name:'Phone 📱',desc:'Stay connected'}
+  ];
+  let html='<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+  items.forEach(it=>{
+    html+=`<button class="btn-sm" onclick="buyItem('${it.name}')" title="${it.desc}">${it.name}</button>`;
+  });
+  html+='</div>';
+  document.getElementById('shop-content').innerHTML=html;
+}
+function buyItem(name){
+  showStatus('🛒 Bought: '+name+' (Free! 💰∞)');
+}
+
+// ── Talk ──────────────────────────────────────────────
+function tryTalk(){
+  const pPos=playerObj?playerObj.position:new THREE.Vector3();
+  let closest=null, minDist=5;
+  npcs.forEach(npc=>{
+    const d=pPos.distanceTo(npc.mesh.position);
+    if(d<minDist){ minDist=d; closest=npc; }
+  });
+  if(closest){
+    const line=closest.dialogue[closest.dlgIdx%closest.dialogue.length];
+    closest.dlgIdx++;
+    document.getElementById('dlg-name').textContent=closest.name+' ('+closest.role+')';
+    document.getElementById('dlg-text').textContent=line;
+    document.getElementById('dialogue').style.display='block';
+    setTimeout(()=>document.getElementById('dialogue').style.display='none',4000);
+  } else {
+    showStatus('No one nearby to talk to!');
+  }
+}
+function closeDialogue(){ document.getElementById('dialogue').style.display='none'; }
+
+// ── Car ───────────────────────────────────────────────
+function toggleCar(){
+  const pPos=playerObj.position;
+  if(!state.inCar){
+    if(pPos.distanceTo(car.position)<5){
+      state.inCar=true;
+      playerObj.visible=false;
+      showStatus('🚗 Driving! WASD to drive, A/D to steer, C to exit.');
+    } else showStatus('Walk closer to the car first!');
+  } else {
+    state.inCar=false;
+    playerObj.visible=true;
+    playerObj.position.copy(car.position);
+    playerObj.position.x+=3;
+    showStatus('🚗 Exited the car.');
+  }
+}
+
+// ── Tech ──────────────────────────────────────────────
+function applyTech(){
+  state.tech.device=document.getElementById('tech-device').value;
+  state.tech.screens=document.getElementById('tech-screens').value;
+  state.tech.console=document.getElementById('tech-console').value;
+  showStatus(`🖥️ Tech: ${state.tech.device}, ${state.tech.screens}, ${state.tech.console}`);
+  closePanel('tech-panel');
+}
+
+// ── Pool ──────────────────────────────────────────────
+function buildPool(){
+  const depth=document.getElementById('pool-depth').value;
+  const shape=document.getElementById('pool-shape').value;
+  if(poolMesh){ scene.remove(poolMesh); }
+  const w=shape==='L-Shape'?10:8, d2=shape==='Freeform'?6:7;
+  poolMesh=new THREE.Mesh(
+    new THREE.BoxGeometry(w,depth*0.4,d2),
+    new THREE.MeshLambertMaterial({color:0x006994,transparent:true,opacity:0.8})
+  );
+  poolMesh.position.set(5,-0.1,-12);
+  scene.add(poolMesh);
+  state.pool={depth,shape};
+  showStatus(`🏊 ${shape} pool built! Depth: ${depth}m`);
+  closePanel('pool-panel');
+}
+
+// ── Rooms ─────────────────────────────────────────────
+const roomColors={Bedroom:0x8888aa,Bathroom:0xaabbcc,Office:0x88aa88,Gym:0xaa8866,Cinema:0x222244};
+function addRoom(){
+  const type=document.getElementById('room-type').value;
+  const idx=state.rooms.length;
+  const rx=15+(idx%3)*6, rz=-8-Math.floor(idx/3)*6;
+  box(5,3,5,roomColors[type]||0x888888,rx,1.5,rz);
+  label3D(type,rx,3.5,rz);
+  state.rooms.push(type);
+  showStatus('🏗️ Added room: '+type);
+  closePanel('room-panel');
+}
+
+// ── Family ────────────────────────────────────────────
+function addFamilyMember(){
+  const name=document.getElementById('fam-name').value||'Family Member';
+  const role=document.getElementById('fam-role').value;
+  addFamilyMemberDirect(name,role);
+  closePanel('family-panel');
+}
+function addFamilyMemberDirect(name,role){
+  const colors={Partner:0xff88aa,Child:0xffcc44,Parent:0xaaaaff};
+  const x=12+Math.random()*6, z=Math.random()*6-3;
+  spawnNPC(name,x,z,colors[role]||0xffffff,role.toLowerCase(),[
+    'Hi! I\'m '+name+', your '+role+'!',
+    'I love our family!',
+    'What are we doing today?',
+    'Together we\'re stronger!'
+  ]);
+  state.family.push({name,role});
+  buildFamilyList();
+  showStatus('👨‍👩‍👧 '+name+' ('+role+') joined your family!');
+}
+function buildFamilyList(){
+  const el=document.getElementById('family-list');
+  if(!el) return;
+  if(state.family.length===0){ el.textContent='No family members yet.'; return; }
+  el.innerHTML=state.family.map(m=>`<div style="padding:3px 0;border-bottom:1px solid #223;">👤 <b>${m.name}</b> — ${m.role}</div>`).join('');
+}
+
+// ── Phone ─────────────────────────────────────────────
+const phoneLines={
+  Call:['Calling Mom... "Hi honey!"','Calling friend... "Hey, what\'s up?"','Calling pizza place... "Order placed!"'],
+  Chat:['You: Hey!\nFriend: Hey! What\'s up?','You: How are you?\nAlex: Great, thanks!','New message from Tommy: "Come play!"'],
+  'Social Media':['You got 42 new likes! 📸','Your post is trending! 🔥','New follower: stranger_x23'],
+  Maps:['Navigating to Shop... 40m away','Route to School... 60m north','Home is 15m east']
+};
+const phoneIdxs={Call:0,Chat:0,'Social Media':0,Maps:0};
+function phoneAction(type){
+  const lines=phoneLines[type];
+  const line=lines[phoneIdxs[type]%lines.length];
+  phoneIdxs[type]++;
+  document.getElementById('phone-output').innerHTML='<b>'+type+':</b><br>'+line.replace(/\n/,'<br>');
+}
+
+// ── Panels ────────────────────────────────────────────
+function openPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.style.display='none');
+  if(id==='wardrobe-panel') buildWardrobeUI();
+  if(id==='shop-panel') buildShopUI();
+  if(id==='family-panel') buildFamilyList();
+  document.getElementById(id).style.display='block';
+  if(locked) document.exitPointerLock();
+}
+function closePanel(id){
+  document.getElementById(id).style.display='none';
+}
+
+// ── Start Game ────────────────────────────────────────
+function startGame(){
+  state.name=document.getElementById('p-name').value||'Player';
+  state.gender=document.getElementById('p-gender').value;
+  state.bustSize=parseInt(document.getElementById('p-bust').value);
+  state.houseType=document.getElementById('p-house').value;
+  state.hairColor=document.getElementById('p-hair').value;
+  state.skinColor=selectedSkin;
+
+  document.getElementById('overlay').style.display='none';
+  buildPlayer();
+  buildHouse(state.houseType);
+  started=true;
+  setCam(3);
+  showStatus('Welcome, '+state.name+'! Press ] to lock mouse. / for actions.');
+}
+
+animate();
+</script>
+</body>
+</html>
+'''
+
+# ─── APP.PY ───────────────────────────────────────────
+APP_PY = '''import streamlit as st
+import streamlit.components.v1 as components
+import os
+
+st.set_page_config(
+    page_title="LifeSim 3D",
+    page_icon="🌍",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Load game HTML from file
+_dir = os.path.dirname(os.path.abspath(__file__))
+_html_path = os.path.join(_dir, "index.html")
+
+with open(_html_path, "r", encoding="utf-8") as f:
+    GAME_HTML = f.read()
+
+# ── Sidebar
+with st.sidebar:
+    st.title("🌍 LifeSim 3D")
+    st.caption("Full 3D life simulator for GitHub Pages")
+    st.divider()
+
+    st.subheader("🎮 Controls")
+    controls = {
+        "Move":               "WASD",
+        "Run":                "Shift + WASD",
+        "Jump":               "Space",
+        "Look around":        "Move Mouse",
+        "Lock / Unlock Mouse":"] key",
+        "Camera 1st person":  "Key 1",
+        "Camera 2nd person":  "Key 2",
+        "Camera 3rd person":  "Key 3",
+        "Wardrobe / Interact":"E  (near wardrobe)",
+        "Talk to NPC":        "F  (near NPC)",
+        "Actions menu":       "/ key",
+        "Enter / Exit car":   "C",
+    }
+    for k, v in controls.items():
+        st.markdown(f"**{k}** → `{v}`")
+
+    st.divider()
+    st.subheader("📥 Download Files")
+    st.caption("Put these in your GitHub repo to deploy on GitHub Pages.")
+
+    # Download index.html
+    with open(_html_path, "rb") as f:
+        st.download_button(
+            label="⬇️ Download index.html  (game)",
+            data=f.read(),
+            file_name="index.html",
+            mime="text/html",
+            use_container_width=True
+        )
+
+    # Download app.py
+    _app_path = os.path.abspath(__file__)
+    with open(_app_path, "rb") as f:
+        st.download_button(
+            label="⬇️ Download app.py  (Streamlit)",
+            data=f.read(),
+            file_name="app.py",
+            mime="text/plain",
+            use_container_width=True
+        )
+
+    # Download requirements.txt
+    _req_path = os.path.join(_dir, "requirements.txt")
+    if os.path.exists(_req_path):
+        with open(_req_path, "rb") as f:
+            st.download_button(
+                label="⬇️ Download requirements.txt",
+                data=f.read(),
+                file_name="requirements.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+
+    st.divider()
+    st.subheader("🚀 GitHub Pages Deploy")
+    st.markdown("""
+1. Create a GitHub repo
+2. Upload **index.html** to the root
+3. Go to **Settings → Pages**
+4. Source: **main branch / root**
+5. Visit `https://yourusername.github.io/reponame/`
+""")
+    st.subheader("🐍 Streamlit Cloud Deploy")
+    st.markdown("""
+1. Push **app.py**, **index.html**, **requirements.txt** to a repo
+2. Go to [share.streamlit.io](https://share.streamlit.io)
+3. Connect repo, set `app.py` as entry point
+4. Deploy!
+""")
+
+# ── Main area: render game
+st.markdown("## 🌍 LifeSim 3D")
+st.caption("Press **]** to lock mouse for free-look. Use **WASD** to move. Press **/** for the actions menu.")
+components.html(GAME_HTML, height=700, scrolling=False)
+'''
+
+# ─── REQUIREMENTS.TXT ─────────────────────────────────
+REQUIREMENTS_TXT = """streamlit>=1.28.0
+"""
+
+# ─── Write all files to the workspace ─────────────────
+with open("index.html", "w", encoding="utf-8") as fh:
+    fh.write(GAME_HTML)
+print("✅ index.html written")
+
+with open("app.py", "w", encoding="utf-8") as fh:
+    fh.write(APP_PY)
+print("✅ app.py written")
+
+with open("requirements.txt", "w", encoding="utf-8") as fh:
+    fh.write(REQUIREMENTS_TXT)
+print("✅ requirements.txt written")
+
+# ─── Verification ─────────────────────────────────────
+import os
+files = ["index.html","app.py","requirements.txt"]
+print("\n=== Files in workspace ===")
+for fn in files:
+    size = os.path.getsize(fn)
+    print(f"  📄 {fn:25s}  {size:>8,} bytes")
+
+features = [
+    "Three.js 3D engine (r128 CDN)",
+    "Mouse-look pointer lock (] key)",
+    "1st / 2nd / 3rd person camera (1/2/3)",
+    "WASD + Shift sprint + Space jump",
+    "Character creation: name, gender, skin, hair, bust, house type",
+    "Wardrobe (E): bra, slip, underwear, t-shirt, top, sexy pack, shorts, pants, shoes, socks, coat",
+    "Bust physics: bob up/down + sway side-to-side when moving",
+    "Actions menu (/ key): sleep, eat, drink, smoke, alcohol, game, phone, family, tech, pool, room…",
+    "NPC system: Sam (shop), Mrs.Chen (teacher), Tommy (child), Alex (companion follows you)",
+    "NPC dialogue (F key) with cycling lines",
+    "Car: enter/exit (C), WASD drive, A/D steer",
+    "Shop (free items, infinite money)",
+    "Tech setup: device, screens, console",
+    "Swimming pool builder: depth + shape",
+    "Room builder: bedroom/bathroom/office/gym/cinema",
+    "Family system: add partner/child/parent as NPCs",
+    "Phone: call, chat, social media, maps",
+    "Door lock toggle",
+    "Minimap with player, NPCs, car, buildings",
+    "House types: Normal / Apartment / Villa / Mansion",
+    "Interior: sofa, TV, kitchen table, chairs, fridge, bed, wardrobe, staircase",
+    "Trees, fences, road, school, shop buildings",
+    "Streamlit app.py with sidebar controls + 3x download buttons",
+    "requirements.txt (streamlit>=1.28)",
+]
+print(f"\n=== Features ({len(features)}) ===")
+for ft in features:
+    print(f"  ✅ {ft}")
