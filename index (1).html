@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>LifeSim 3D</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;overflow:hidden;font-family:'Segoe UI',sans-serif;color:#fff;}
+#c{display:block;width:100vw;height:100vh;}
+#hud{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;}
+#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;}
+#crosshair::before,#crosshair::after{content:'';position:absolute;background:rgba(255,255,255,.85);}
+#crosshair::before{width:2px;height:20px;left:9px;top:0;}
+#crosshair::after{width:20px;height:2px;top:9px;left:0;}
+#money{position:absolute;top:14px;right:18px;background:rgba(0,0,0,.6);padding:6px 14px;border-radius:8px;font-size:15px;}
+#status{position:absolute;bottom:58px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.7);padding:6px 22px;border-radius:10px;font-size:14px;display:none;pointer-events:none;}
+#prompt{position:absolute;bottom:28px;left:50%;transform:translateX(-50%);background:rgba(30,30,80,.85);padding:5px 20px;border-radius:8px;font-size:13px;display:none;pointer-events:none;}
+#minimap{position:absolute;bottom:14px;right:14px;width:120px;height:120px;background:rgba(0,0,0,.5);border:1px solid #555;border-radius:6px;pointer-events:none;}
+#cammode{position:absolute;top:14px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.5);padding:4px 14px;border-radius:8px;font-size:12px;}
+#keyhint{position:absolute;top:44px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.4);padding:3px 12px;border-radius:6px;font-size:11px;color:#aaa;}
+#players-hud{position:absolute;top:14px;left:14px;background:rgba(0,0,0,.55);padding:6px 12px;border-radius:8px;font-size:12px;min-width:120px;}
+.panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a2e;border:1px solid #444;border-radius:14px;padding:24px 30px;z-index:100;min-width:340px;max-width:560px;max-height:88vh;overflow-y:auto;display:none;}
+.panel h2{text-align:center;margin-bottom:14px;color:#a8d8ff;font-size:19px;}
+.panel label{display:block;margin:8px 0 3px;font-size:13px;color:#ccc;}
+.panel input[type=text],.panel select,.panel input[type=range]{width:100%;padding:7px 10px;background:#0d0d1a;border:1px solid #555;border-radius:7px;color:#fff;font-size:13px;}
+.panel input[type=range]{padding:4px 0;}
+.panel input[type=color]{width:44px;height:30px;border:none;border-radius:5px;cursor:pointer;background:none;}
+.btn{background:linear-gradient(135deg,#4a90d9,#2563eb);color:#fff;border:none;border-radius:8px;padding:9px 22px;cursor:pointer;font-size:14px;margin-top:8px;width:100%;}
+.btn:hover{opacity:.88;}
+.btn-sm{background:#223;color:#adf;border:1px solid #445;border-radius:6px;padding:6px 13px;cursor:pointer;font-size:12px;margin:3px 2px;}
+.btn-sm:hover{background:#334;}
+.btn-sm.active{background:#2255aa;border-color:#5599ff;color:#fff;}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0;}
+.sep{border:none;border-top:1px solid #333;margin:12px 0;}
+.cloth-row{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid #222;}
+.cloth-row span{font-size:13px;color:#ccc;flex:1;}
+.cloth-row .toggle-btn{background:#334;border:1px solid #556;color:#adf;border-radius:5px;padding:3px 11px;cursor:pointer;font-size:12px;min-width:56px;text-align:center;}
+.cloth-row .toggle-btn.on{background:#1a3a6a;border-color:#4488cc;color:#fff;}
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:200;display:flex;align-items:center;justify-content:center;}
+#overlay-box{background:#12121f;border:1px solid #334;border-radius:18px;padding:36px 40px;max-width:530px;width:94%;text-align:center;max-height:94vh;overflow-y:auto;}
+#overlay-box h1{font-size:27px;color:#a8d8ff;margin-bottom:6px;}
+#overlay-box p{color:#888;font-size:13px;margin-bottom:18px;}
+.menu-tab{display:inline-block;padding:7px 20px;background:#1e1e3a;border:1px solid #444;border-radius:8px 8px 0 0;cursor:pointer;font-size:13px;margin-right:4px;}
+.menu-tab.active{background:#2a2a50;border-bottom-color:#2a2a50;color:#a8d8ff;}
+.tab-content{background:#1a1a30;border:1px solid #444;border-radius:0 8px 8px 8px;padding:18px;margin-bottom:14px;}
+.ov-label{text-align:left;display:block;color:#ccc;font-size:13px;margin:8px 0 3px;}
+.ov-input{width:100%;padding:9px;background:#0d0d1a;border:1px solid #555;border-radius:8px;color:#fff;font-size:13px;margin-bottom:6px;}
+.skin-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:.15s;display:inline-block;}
+.skin-swatch:hover,.skin-swatch.sel{border-color:#fff;transform:scale(1.15);}
+#dialogue{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);background:rgba(8,8,28,.93);border:1px solid #445;border-radius:12px;padding:14px 22px;width:440px;display:none;z-index:50;}
+#dialogue .npc-name{color:#7cf;font-size:13px;margin-bottom:4px;}
+#dialogue .npc-text{font-size:14px;color:#eee;line-height:1.5;}
+#dialogue .close-btn{position:absolute;top:6px;right:10px;background:none;border:none;color:#888;cursor:pointer;font-size:16px;}
+#chat-box{position:fixed;bottom:90px;right:14px;width:270px;background:rgba(10,10,30,.9);border:1px solid #445;border-radius:10px;display:none;flex-direction:column;z-index:50;}
+#chat-msgs{height:150px;overflow-y:auto;padding:8px;font-size:12px;color:#ddd;}
+#chat-input-row{display:flex;padding:6px;}
+#chat-input{flex:1;background:#0d0d1a;border:1px solid #555;border-radius:5px;color:#fff;font-size:12px;padding:4px 7px;}
+#chat-send{background:#2255aa;border:none;color:#fff;border-radius:5px;padding:4px 10px;cursor:pointer;font-size:12px;margin-left:4px;}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="money">💰 ∞ Infinity</div>
+  <div id="cammode">📷 3rd Person</div>
+  <div id="keyhint">/ = Menu &nbsp;|&nbsp; E = Wardrobe &nbsp;|&nbsp; F = Talk &nbsp;|&nbsp; C = Car &nbsp;|&nbsp; ] = Mouse Lock &nbsp;|&nbsp; T = Chat &nbsp;|&nbsp; 1/2/3 = Camera</div>
+  <div id="status"></div>
+  <div id="prompt"></div>
+  <div id="players-hud">👥 <span id="player-count">1</span> Online<br/><div id="player-list" style="font-size:11px;color:#aaa;margin-top:2px;"></div></div>
+  <div id="minimap"><canvas id="mm" width="120" height="120"></canvas></div>
+</div>
+
+<div id="chat-box">
+  <div id="chat-msgs"></div>
+  <div id="chat-input-row">
+    <input id="chat-input" type="text" placeholder="Message…" maxlength="80"/>
+    <button id="chat-send">➤</button>
+  </div>
+</div>
+
+<div id="dialogue">
+  <button class="close-btn" onclick="closeDialogue()">✕</button>
+  <div class="npc-name" id="dlg-name"></div>
+  <div class="npc-text" id="dlg-text"></div>
+</div>
+
+<!-- MAIN MENU -->
+<div id="overlay">
+<div id="overlay-box">
+  <h1>🌍 LifeSim 3D</h1>
+  <p>Create your character and start living!</p>
+  <div style="display:flex;margin-bottom:0;justify-content:center;">
+    <div class="menu-tab active" id="tab-char" onclick="switchTab('char')">👤 Character</div>
+    <div class="menu-tab" id="tab-multi" onclick="switchTab('multi')">🌐 Multiplayer</div>
+  </div>
+  <div class="tab-content" id="tc-char">
+    <label class="ov-label">Your Name</label>
+    <input class="ov-input" id="p-name" type="text" placeholder="Enter your name…"/>
+    <label class="ov-label">Gender</label>
+    <select class="ov-input" id="p-gender" onchange="updateGenderUI()">
+      <option value="female">Female</option>
+      <option value="male">Male</option>
+    </select>
+    <label class="ov-label">House Type</label>
+    <select class="ov-input" id="p-house">
+      <option value="normal">Normal House</option>
+      <option value="apartment">Apartment</option>
+      <option value="villa">Villa</option>
+      <option value="mansion">Mansion</option>
+    </select>
+    <label class="ov-label">Skin Tone</label>
+    <div style="display:flex;gap:8px;margin-bottom:10px;" id="skin-row">
+      <div class="skin-swatch" data-c="#FDDBB4" style="background:#FDDBB4;"></div>
+      <div class="skin-swatch sel" data-c="#F1C27D" style="background:#F1C27D;"></div>
+      <div class="skin-swatch" data-c="#C68642" style="background:#C68642;"></div>
+      <div class="skin-swatch" data-c="#8D5524" style="background:#8D5524;"></div>
+      <div class="skin-swatch" data-c="#4A2912" style="background:#4A2912;"></div>
+    </div>
+    <label class="ov-label">Hair Color</label>
+    <input type="color" id="p-hair" value="#3b1e08" style="margin-bottom:10px;"/>
+    <div id="bust-row">
+      <label class="ov-label">Bust Size <span id="bust-lbl">3</span>/5</label>
+      <input type="range" id="p-bust" min="1" max="5" value="3" oninput="document.getElementById('bust-lbl').textContent=this.value" style="margin-bottom:10px;"/>
+    </div>
+    <div id="body-row">
+      <label class="ov-label">Body Shape: <span id="body-lbl">Normal</span></label>
+      <input type="range" id="p-body" min="1" max="3" value="2" oninput="updateBodyLbl(this.value)" style="margin-bottom:10px;"/>
+    </div>
+  </div>
+  <div class="tab-content" id="tc-multi" style="display:none;">
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button class="btn" style="flex:1;" onclick="joinPublicLobby()">🌍 Public Game</button>
+      <button class="btn" style="flex:1;background:linear-gradient(135deg,#2d6a4f,#1b4332);" onclick="showPrivate()">🔒 Private Room</button>
+    </div>
+    <div id="private-section" style="display:none;">
+      <label class="ov-label">Room Code (leave blank for random)</label>
+      <input class="ov-input" id="room-code-input" type="text" placeholder="e.g. PARTY" maxlength="6"/>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" style="flex:1;" onclick="createPrivateRoom()">➕ Create</button>
+        <button class="btn" style="flex:1;background:linear-gradient(135deg,#555,#333);" onclick="joinPrivateRoom()">🔑 Join</button>
+      </div>
+    </div>
+    <div id="lobby-status" style="margin-top:12px;padding:10px;background:#0d0d1a;border-radius:8px;font-size:13px;color:#aaa;text-align:center;">
+      Not connected – pick an option above
+    </div>
+    <div id="lobby-players" style="margin-top:8px;font-size:12px;color:#888;"></div>
+  </div>
+  <button style="background:linear-gradient(135deg,#4a90d9,#2563eb);color:#fff;border:none;border-radius:8px;padding:13px 22px;cursor:pointer;font-size:16px;width:100%;margin-top:8px;" onclick="startGame()">▶ Play Now</button>
+</div>
+</div>
+
+<!-- WARDROBE -->
+<div class="panel" id="wardrobe-panel">
+  <h2>👗 Wardrobe</h2>
+  <p style="font-size:12px;color:#777;text-align:center;margin-bottom:10px;">Toggle items on/off • Pick any color</p>
+  <div id="wardrobe-content"></div>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('wardrobe-panel')">✔ Done</button>
+</div>
+
+<!-- SHOP -->
+<div class="panel" id="shop-panel">
+  <h2>🛒 Shop  (∞ Money)</h2>
+  <div id="shop-content"></div>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('shop-panel')">Close</button>
+</div>
+
+<!-- ACTIONS MENU -->
+<div class="panel" id="actions-panel">
+  <h2>⚡ Actions</h2>
+  <div class="row" style="justify-content:center;">
+    <button class="btn-sm" onclick="doAction('sleep')">😴 Sleep</button>
+    <button class="btn-sm" onclick="doAction('eat')">🍔 Eat</button>
+    <button class="btn-sm" onclick="doAction('drink')">💧 Drink Water</button>
+    <button class="btn-sm" onclick="doAction('smoke')">🚬 Smoke</button>
+    <button class="btn-sm" onclick="doAction('alcohol')">🍺 Drink Alcohol</button>
+    <button class="btn-sm" onclick="doAction('game')">🎮 Play Videogame</button>
+    <button class="btn-sm" onclick="openPhone()">📱 Phone</button>
+    <button class="btn-sm" onclick="doAction('family')">👨‍👩‍👧 Start Family</button>
+    <button class="btn-sm" onclick="openTechSetup()">🖥️ Tech Setup</button>
+    <button class="btn-sm" onclick="openPoolSetup()">🏊 Build Pool</button>
+    <button class="btn-sm" onclick="openRoomSetup()">🏠 Add Room</button>
+    <button class="btn-sm" onclick="doAction('school')">🏫 Go to School</button>
+    <button class="btn-sm" onclick="doAction('outside')">🚪 Go Outside</button>
+    <button class="btn-sm" onclick="doAction('lockdoor')">🔒 Lock/Unlock Door</button>
+  </div>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('actions-panel')">Close</button>
+</div>
+
+<!-- PHONE -->
+<div class="panel" id="phone-panel">
+  <h2>📱 Phone</h2>
+  <div class="row" style="justify-content:center;">
+    <button class="btn-sm" onclick="doAction('call')">📞 Call Someone</button>
+    <button class="btn-sm" onclick="toggleChat()">💬 Chat</button>
+    <button class="btn-sm" onclick="doAction('social')">📸 Social Media</button>
+    <button class="btn-sm" onclick="doAction('maps')">🗺️ Maps</button>
+  </div>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('phone-panel')">Close</button>
+</div>
+
+<!-- TECH SETUP -->
+<div class="panel" id="tech-panel">
+  <h2>🖥️ Tech Setup</h2>
+  <label>Device</label>
+  <select id="tech-device" class="ov-input">
+    <option value="desktop">Desktop PC</option>
+    <option value="laptop">Laptop</option>
+    <option value="both">PC + Laptop</option>
+  </select>
+  <label>Number of Monitors</label>
+  <input type="range" id="tech-monitors" min="1" max="3" value="1" oninput="document.getElementById('mon-lbl').textContent=this.value"/>
+  <span id="mon-lbl" style="font-size:13px;color:#aaa;">1</span>
+  <label>Console</label>
+  <select id="tech-console" class="ov-input">
+    <option value="none">None</option>
+    <option value="ps5">PlayStation 5</option>
+    <option value="xbox">Xbox Series X</option>
+    <option value="switch">Nintendo Switch</option>
+  </select>
+  <hr class="sep"/>
+  <button class="btn" onclick="applyTech()">Apply Setup</button>
+  <button class="btn" style="background:#333;margin-top:6px;" onclick="closePanel('tech-panel')">Cancel</button>
+</div>
+
+<!-- POOL SETUP -->
+<div class="panel" id="pool-panel">
+  <h2>🏊 Build Swimming Pool</h2>
+  <label>Shape</label>
+  <select id="pool-shape" class="ov-input">
+    <option value="rectangle">Rectangle</option>
+    <option value="oval">Oval / Round</option>
+    <option value="lshape">L-Shape</option>
+  </select>
+  <label>Depth: <span id="pool-depth-lbl">1.5</span>m</label>
+  <input type="range" id="pool-depth" min="10" max="30" value="15" oninput="document.getElementById('pool-depth-lbl').textContent=(this.value/10).toFixed(1)"/>
+  <label>Water Color</label>
+  <input type="color" id="pool-color" value="#0077cc"/>
+  <hr class="sep"/>
+  <button class="btn" onclick="applyPool()">Build Pool</button>
+  <button class="btn" style="background:#333;margin-top:6px;" onclick="closePanel('pool-panel')">Cancel</button>
+</div>
+
+<!-- ROOM SETUP -->
+<div class="panel" id="room-panel">
+  <h2>🏠 Add Room</h2>
+  <div class="row" style="justify-content:center;">
+    <button class="btn-sm" onclick="addRoom('bedroom')">🛏 Bedroom</button>
+    <button class="btn-sm" onclick="addRoom('bathroom')">🚿 Bathroom</button>
+    <button class="btn-sm" onclick="addRoom('gym')">💪 Gym</button>
+    <button class="btn-sm" onclick="addRoom('office')">💻 Office</button>
+    <button class="btn-sm" onclick="addRoom('cinema')">🎬 Cinema Room</button>
+    <button class="btn-sm" onclick="addRoom('garage')">🚗 Garage</button>
+  </div>
+  <hr class="sep"/>
+  <button class="btn" onclick="closePanel('room-panel')">Close</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  THREE.JS INLINE (r128 minified CDN reference)
+// ═══════════════════════════════════════════════════════
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+
+// ─── GLOBALS ───────────────────────────────────────────
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.Fog(0x87CEEB, 40, 160);
+
+const clock = new THREE.Clock();
+
+// Player state
+let player = {
+  name:'Player', gender:'female', skinColor:'#F1C27D',
+  hairColor:'#3b1e08', bustSize:3, bodyShape:2,
+  pos: new THREE.Vector3(0,0,0),
+  vel: new THREE.Vector3(0,0,0),
+  yaw:0, pitch:0,
+  onGround:true, inCar:false, running:false,
+  outfit:{
+    bra:{on:true, color:'#ff69b4'},
+    slip:{on:true, color:'#ff69b4'},
+    underwear:{on:false, color:'#4444aa'},
+    tshirt:{on:false, color:'#ffffff'},
+    top:{on:true, color:'#e83e8c'},
+    bikini:{on:false, color:'#ff0066'},
+    shorts:{on:false, color:'#3366ff'},
+    pants:{on:false, color:'#222244'},
+    shoes:{on:true, color:'#8B4513'},
+    socks:{on:false, color:'#ffffff'},
+    coat:{on:false, color:'#444455'}
+  },
+  houseType:'normal', doorLocked:false,
+  family:[], children:0,
+  tech:{device:'desktop', monitors:1, console:'none'},
+  pool:null
+};
+
+// Camera
+let camMode = 3; // 1=first, 2=second, 3=third
+let mouseLocked = false;
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.05, 300);
+
+// Keys
+const keys = {};
+window.addEventListener('keydown', e=>{ keys[e.code]=true; onKey(e); });
+window.addEventListener('keyup', e=>{ keys[e.code]=false; });
+
+// NPC definitions
+const NPC_DEFS = [
+  {id:'alex',   name:'Alex',      role:'companion', x:3,  z:3,  color:0xffaa77, hair:0x442200, follow:true},
+  {id:'sam',    name:'Sam',       role:'shopkeeper',x:38, z:-8, color:0xffd5a8, hair:0x222222, follow:false},
+  {id:'chen',   name:'Mrs. Chen', role:'teacher',   x:30, z:30, color:0xf5c9a0, hair:0x111111, follow:false},
+  {id:'tommy',  name:'Tommy',     role:'child',     x:32, z:26, color:0xfddbb4, hair:0x8B4513, follow:false},
+];
+const NPC_LINES = {
+  alex:['Hey! Where are we going?','I\'m right behind you!','What do you want to do today?','You look great today!'],
+  sam:['Welcome to the shop! Take anything you like!','Everything is free for you!','Come back anytime!'],
+  chen:['Class starts soon, don\'t be late!','Learning is so important!','You\'re doing great in school!'],
+  tommy:['Can we play?','Tag, you\'re it!','I want to be just like you when I grow up!']
+};
+const npcs = [];
+
+// Online players
+let onlinePlayers = {};
+let ws = null;
+let roomCode = null;
+let myId = 'p_' + Math.random().toString(36).substr(2,8);
+
+// World objects
+let charMesh = null;
+let carMesh  = null;
+let carDriving = false;
+let carRelPos = new THREE.Vector3(2,0,0);
+let wardrobePos = new THREE.Vector3(-2, 0, -4);
+let shopPos  = new THREE.Vector3(38,-1,-8);
+let schoolPos= new THREE.Vector3(30,-1,30);
+let poolMesh = null;
+let addedRooms = [];
+let onlinePlayerMeshes = {};
+
+// ─── SKIN SWATCHES ─────────────────────────────────────
+document.querySelectorAll('.skin-swatch').forEach(sw=>{
+  sw.addEventListener('click',()=>{
+    document.querySelectorAll('.skin-swatch').forEach(s=>s.classList.remove('sel'));
+    sw.classList.add('sel');
+    player.skinColor = sw.dataset.c;
+  });
+});
+
+function updateGenderUI(){
+  const g = document.getElementById('p-gender').value;
+  document.getElementById('bust-row').style.display = g==='female'?'block':'none';
+}
+function updateBodyLbl(v){
+  document.getElementById('body-lbl').textContent = v==1?'Slim':v==2?'Normal':'Athletic';
+}
+
+// ─── TAB SWITCHING ─────────────────────────────────────
+function switchTab(t){
+  document.getElementById('tc-char').style.display  = t==='char'?'block':'none';
+  document.getElementById('tc-multi').style.display = t==='multi'?'block':'none';
+  document.getElementById('tab-char').classList.toggle('active',t==='char');
+  document.getElementById('tab-multi').classList.toggle('active',t==='multi');
+}
+
+// ─── MULTIPLAYER ───────────────────────────────────────
+function showPrivate(){ document.getElementById('private-section').style.display='block'; }
+
+function setLobbyStatus(msg,color='#aaa'){
+  const el=document.getElementById('lobby-status');
+  el.textContent=msg; el.style.color=color;
+}
+
+function joinPublicLobby(){
+  roomCode='PUBLIC';
+  setLobbyStatus('🌍 Joining public game…','#7cf');
+  connectWS('PUBLIC');
+}
+function createPrivateRoom(){
+  let code=document.getElementById('room-code-input').value.trim().toUpperCase();
+  if(!code) code=Math.random().toString(36).substr(2,5).toUpperCase();
+  roomCode=code;
+  document.getElementById('room-code-input').value=code;
+  setLobbyStatus('🔒 Room created: '+code+' — Share this code!','#8de5a1');
+  connectWS(code);
+}
+function joinPrivateRoom(){
+  const code=document.getElementById('room-code-input').value.trim().toUpperCase();
+  if(!code){setLobbyStatus('Enter a room code first','#f88');return;}
+  roomCode=code;
+  setLobbyStatus('🔑 Joining room: '+code,'#7cf');
+  connectWS(code);
+}
+
+function connectWS(room){
+  const WS_URL = window.LIFESIM_WS_URL || null;
+  if(!WS_URL){
+    // Demo mode — spawn bot players
+    spawnBotPlayers(room);
+    return;
+  }
+  try{
+    ws = new WebSocket(WS_URL);
+    ws.onopen=()=>{
+      ws.send(JSON.stringify({type:'join',room,id:myId,name:player.name||'Player'}));
+      setLobbyStatus('✅ Connected to room: '+room,'#8de5a1');
+    };
+    ws.onmessage=e=>{
+      const d=JSON.parse(e.data);
+      if(d.type==='players') updateOnlinePlayers(d.players);
+      if(d.type==='move')    updatePlayerPos(d);
+      if(d.type==='chat')    addChatMsg(d.name+': '+d.msg,'#7cf');
+      if(d.type==='room_full') setLobbyStatus('Room full (20/20)','#f88');
+    };
+    ws.onclose=()=>setLobbyStatus('Disconnected','#f88');
+    ws.onerror=()=>{ spawnBotPlayers(room); };
+  }catch(ex){ spawnBotPlayers(room); }
+}
+
+function spawnBotPlayers(room){
+  const count = room==='PUBLIC' ? Math.floor(Math.random()*6)+2 : Math.floor(Math.random()*3)+1;
+  const names=['Emma','Noah','Olivia','Liam','Ava','Ethan','Mia','Lucas'];
+  setLobbyStatus('Demo: '+count+' players in room '+room,'#ffd400');
+  for(let i=0;i<count;i++){
+    const id='bot_'+i;
+    onlinePlayers[id]={id,name:names[i%names.length],x:(Math.random()-0.5)*20,z:(Math.random()-0.5)*20};
+  }
+  updatePlayerCountHUD();
+}
+
+function updateOnlinePlayers(players){
+  onlinePlayers={};
+  players.forEach(p=>{ if(p.id!==myId) onlinePlayers[p.id]=p; });
+  updatePlayerCountHUD();
+}
+function updatePlayerPos(d){ if(d.id!==myId && onlinePlayers[d.id]) { onlinePlayers[d.id].x=d.x; onlinePlayers[d.id].z=d.z; }}
+function updatePlayerCountHUD(){
+  const total = Object.keys(onlinePlayers).length+1;
+  document.getElementById('player-count').textContent=total;
+  document.getElementById('player-list').innerHTML=Object.values(onlinePlayers).map(p=>'• '+p.name).join('<br/>');
+}
+
+// ─── START GAME ────────────────────────────────────────
+function startGame(){
+  player.name      = document.getElementById('p-name').value||'Player';
+  player.gender    = document.getElementById('p-gender').value;
+  player.houseType = document.getElementById('p-house').value;
+  player.hairColor = document.getElementById('p-hair').value;
+  player.bustSize  = parseInt(document.getElementById('p-bust').value);
+  player.bodyShape = parseInt(document.getElementById('p-body').value);
+
+  document.getElementById('overlay').style.display='none';
+  buildWorld();
+  buildCharacter();
+  buildNPCs();
+  buildOnlinePlayerMeshes();
+  buildWardrobe();
+  requestPointerLock();
+  animate();
+}
+
+// ═══════════════════════════════════════════════════════
+//  WORLD BUILDING
+// ═══════════════════════════════════════════════════════
+function buildWorld(){
+  // Lighting
+  const amb = new THREE.AmbientLight(0xffffff, 0.55);
+  scene.add(amb);
+  const sun = new THREE.DirectionalLight(0xfffaee, 1.2);
+  sun.position.set(30,60,20);
+  sun.castShadow=true;
+  sun.shadow.mapSize.width=2048; sun.shadow.mapSize.height=2048;
+  sun.shadow.camera.near=0.5; sun.shadow.camera.far=200;
+  sun.shadow.camera.left=-80; sun.shadow.camera.right=80;
+  sun.shadow.camera.top=80; sun.shadow.camera.bottom=-80;
+  scene.add(sun);
+
+  // Ground
+  const gGeo = new THREE.PlaneGeometry(300,300,20,20);
+  const gMat = new THREE.MeshLambertMaterial({color:0x4a7c59});
+  const ground = new THREE.Mesh(gGeo,gMat);
+  ground.rotation.x=-Math.PI/2; ground.position.y=-1;
+  ground.receiveShadow=true;
+  scene.add(ground);
+
+  // Road
+  buildRoad();
+
+  // House
+  buildHouse(player.houseType);
+
+  // Shop
+  buildShop();
+
+  // School
+  buildSchool();
+
+  // Trees
+  for(let i=0;i<20;i++){
+    const angle=Math.random()*Math.PI*2;
+    const r=20+Math.random()*60;
+    buildTree(Math.cos(angle)*r, Math.sin(angle)*r);
+  }
+
+  // Car
+  buildCar();
+
+  // Fence around spawn house
+  buildFence();
+}
+
+function buildRoad(){
+  const mat = new THREE.MeshLambertMaterial({color:0x444444});
+  const roadH = new THREE.Mesh(new THREE.BoxGeometry(200,0.1,8), mat);
+  roadH.position.set(0,-0.95,20);
+  scene.add(roadH);
+  const roadV = new THREE.Mesh(new THREE.BoxGeometry(8,0.1,200), mat);
+  roadV.position.set(20,-0.95,0);
+  scene.add(roadV);
+  // Pavement
+  const pavMat = new THREE.MeshLambertMaterial({color:0x888888});
+  [-1,1].forEach(side=>{
+    const pav = new THREE.Mesh(new THREE.BoxGeometry(200,0.1,2), pavMat);
+    pav.position.set(0,-0.94,20+side*5);
+    scene.add(pav);
+  });
+}
+
+function buildHouse(type){
+  const scales = {normal:[1,1,1], apartment:[1.2,1.8,1], villa:[1.6,1.2,1.6], mansion:[2,1.5,2]};
+  const s = scales[type]||scales.normal;
+  const W=12*s[0], H=6*s[1], D=10*s[2];
+  const wallMat = new THREE.MeshLambertMaterial({color:0xfaf0dc});
+  const roofMat = new THREE.MeshLambertMaterial({color:0xcc4422});
+  const floorMat= new THREE.MeshLambertMaterial({color:0xd4a96a});
+  const glassMat= new THREE.MeshLambertMaterial({color:0x88ccff,transparent:true,opacity:.4});
+
+  // Walls
+  const house = new THREE.Group();
+  house.add(box3(W,H,D,wallMat,0,H/2-1,0));
+  // Floor
+  house.add(box3(W,0.2,D,floorMat,0,-0.9,0));
+  // Roof (pitched)
+  const roofGeo = new THREE.ConeGeometry(Math.max(W,D)*0.75, 3, 4);
+  const roof = new THREE.Mesh(roofGeo, roofMat);
+  roof.position.set(0,H-1+1.5,0);
+  roof.rotation.y=Math.PI/4;
+  roof.castShadow=true;
+  house.add(roof);
+  // Windows
+  [[-W/2+0.01,H/2,1],[W/2-0.01,H/2,1],[0,H/2,-D/2+0.01]].forEach(([x,y,z],i)=>{
+    const win = new THREE.Mesh(new THREE.BoxGeometry(i<2?0.1:1.5, 1.2, i<2?1.5:0.1), glassMat);
+    win.position.set(x,y,z); house.add(win);
+  });
+  // Door
+  const doorMat = new THREE.MeshLambertMaterial({color:0x8B4513});
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.2,2.4,0.15),doorMat);
+  door.position.set(0,0.3,D/2); house.add(door);
+  house.position.set(-6,0,-6);
+  scene.add(house);
+
+  // Interior furniture
+  buildInterior(W,H,D,s);
+
+  // Wardrobe (trigger point)
+  wardrobePos.set(-2, 0, -4);
+  const wMat = new THREE.MeshLambertMaterial({color:0x8B5E3C});
+  const wardrobe = new THREE.Mesh(new THREE.BoxGeometry(1.5,2.2,0.8), wMat);
+  wardrobe.position.copy(wardrobePos);
+  wardrobe.castShadow=true;
+  scene.add(wardrobe);
+}
+
+function buildInterior(W,H,D,s){
+  // Living room
+  // Sofa
+  const sofaMat = new THREE.MeshLambertMaterial({color:0x6655aa});
+  const sofa = new THREE.Group();
+  sofa.add(box3(2.4,0.5,0.9,sofaMat,0,0,0));
+  sofa.add(box3(2.4,0.8,0.2,sofaMat,0,0.4,-0.35));
+  sofa.add(box3(0.2,0.8,0.9,sofaMat,-1.1,0.4,0));
+  sofa.add(box3(0.2,0.8,0.9,sofaMat, 1.1,0.4,0));
+  sofa.position.set(-1,-0.7,-2);
+  scene.add(sofa);
+
+  // Small table
+  const tabMat = new THREE.MeshLambertMaterial({color:0x8B6914});
+  const sTable = box3(1,0.05,0.6,tabMat,0,-0.4,0.8);
+  scene.add(sTable);
+
+  // TV stand + TV
+  const tvStandMat = new THREE.MeshLambertMaterial({color:0x333333});
+  const tvMat     = new THREE.MeshLambertMaterial({color:0x111111});
+  const screenMat = new THREE.MeshLambertMaterial({color:0x1a1aff,emissive:0x001133,emissiveIntensity:.6});
+  const tvStand = box3(2,0.5,0.4,tvStandMat,0,-0.7,-4.6);
+  const tvBack  = box3(1.8,1.1,0.1,tvMat,0,0.25,-4.6);
+  const tvScrn  = box3(1.6,0.95,0.05,screenMat,0,0.25,-4.57);
+  scene.add(tvStand); scene.add(tvBack); scene.add(tvScrn);
+
+  // Kitchen table + chairs
+  const kitMat = new THREE.MeshLambertMaterial({color:0xffffff});
+  const kitTable = box3(2,0.06,1,kitMat,4,-0.67,-3);
+  scene.add(kitTable);
+  [-0.8,0.8].forEach(x=>{
+    const legG=new THREE.Group();
+    legG.add(box3(0.5,0.8,0.5,new THREE.MeshLambertMaterial({color:0xcccccc}),0,0,0));
+    legG.add(box3(0.5,0.05,0.5,new THREE.MeshLambertMaterial({color:0x999999}),0,0.45,0));
+    legG.position.set(4+x,-0.9,-3); scene.add(legG);
+  });
+
+  // Fridge
+  const fridgeMat = new THREE.MeshLambertMaterial({color:0xe0e0e0});
+  const fridge = box3(0.8,1.8,0.7,fridgeMat,5.5,-0.1,-5);
+  scene.add(fridge);
+
+  // Bed (bedroom upstairs — place on ground for now)
+  const bedMat  = new THREE.MeshLambertMaterial({color:0xffeedd});
+  const bed = new THREE.Group();
+  bed.add(box3(1.6,0.3,2.2,bedMat,0,0,0));
+  bed.add(box3(1.6,0.5,0.3,new THREE.MeshLambertMaterial({color:0xcc8866}),0,0.25,-1.1));
+  bed.position.set(-3,-0.7,-8);
+  scene.add(bed);
+
+  // Stairs
+  for(let i=0;i<8;i++){
+    const s = box3(1.5,0.2,0.4, new THREE.MeshLambertMaterial({color:0xd4a96a}), 2, -0.9+i*0.35, -4+i*0.35);
+    scene.add(s);
+  }
+}
+
+function buildShop(){
+  const shopMat = new THREE.MeshLambertMaterial({color:0x4488ff});
+  const g = new THREE.Group();
+  g.add(box3(12,5,8,shopMat,0,2.5,0));
+  g.add(box3(12,0.2,8,new THREE.MeshLambertMaterial({color:0x333333}),0,5.1,0));
+  // Sign
+  const signGeo = new THREE.PlaneGeometry(6,1.2);
+  const signMat = new THREE.MeshLambertMaterial({color:0xffdd00});
+  const sign = new THREE.Mesh(signGeo,signMat);
+  sign.position.set(0,6.2,4.1);
+  g.add(sign);
+  g.position.set(38,-1,-8);
+  scene.add(g);
+  // Shop interior shelves
+  for(let i=0;i<3;i++){
+    const shelf = box3(0.3,2,3, new THREE.MeshLambertMaterial({color:0xaa8855}),38+i*2,-0.5,-9);
+    scene.add(shelf);
+  }
+}
+
+function buildSchool(){
+  const sMat = new THREE.MeshLambertMaterial({color:0xeebb44});
+  const g = new THREE.Group();
+  g.add(box3(18,7,12,sMat,0,3.5,0));
+  g.add(box3(18,0.2,12,new THREE.MeshLambertMaterial({color:0x666622}),0,7.1,0));
+  g.position.set(30,-1,30);
+  scene.add(g);
+}
+
+function buildTree(x,z){
+  const trunk = box3(0.3,2,0.3, new THREE.MeshLambertMaterial({color:0x8B4513}), x,-0.5,z);
+  const top   = new THREE.Mesh(new THREE.SphereGeometry(1.4,8,6), new THREE.MeshLambertMaterial({color:0x228B22}));
+  top.position.set(x,1.5,z);
+  top.castShadow=true;
+  scene.add(trunk); scene.add(top);
+}
+
+function buildFence(){
+  const mat = new THREE.MeshLambertMaterial({color:0xcc9944});
+  const posts = [[-10,0],[-5,0],[0,0],[5,0],[10,0],[-10,5],[-10,10],[10,5],[10,10],[-5,10],[0,10],[5,10]];
+  posts.forEach(([x,z])=>{
+    const p=box3(0.15,1.4,0.15,mat,x-6,-0.3,z-12);
+    scene.add(p);
+  });
+}
+
+function buildCar(){
+  const bodyMat  = new THREE.MeshLambertMaterial({color:0xff3333});
+  const glassMat = new THREE.MeshLambertMaterial({color:0x88ccff,transparent:true,opacity:.6});
+  const tyreMat  = new THREE.MeshLambertMaterial({color:0x111111});
+  carMesh = new THREE.Group();
+  carMesh.add(box3(3.6,0.7,1.8, bodyMat,0,0,0));
+  carMesh.add(box3(2.4,0.7,1.7, bodyMat,0,0.7,0));
+  carMesh.add(box3(2.2,0.55,1.6,glassMat,0,0.72,0));
+  // Wheels
+  [[1.2,-0.35,0.95],[1.2,-0.35,-0.95],[-1.2,-0.35,0.95],[-1.2,-0.35,-0.95]].forEach(([wx,wy,wz])=>{
+    const whl=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.35,0.22,12),tyreMat);
+    whl.rotation.z=Math.PI/2; whl.position.set(wx,wy,wz); carMesh.add(whl);
+  });
+  carMesh.position.set(8,-0.65,8);
+  carMesh.castShadow=true;
+  scene.add(carMesh);
+}
+
+// ═══════════════════════════════════════════════════════
+//  REALISTIC HUMAN CHARACTER
+// ═══════════════════════════════════════════════════════
+function buildCharacter(){
+  if(charMesh) scene.remove(charMesh);
+  charMesh = createHumanMesh(player);
+  charMesh.position.copy(player.pos);
+  charMesh.castShadow=true;
+  scene.add(charMesh);
+}
+
+function createHumanMesh(p){
+  const skin  = new THREE.Color(p.skinColor);
+  const hair  = new THREE.Color(p.hairColor);
+  const skinM = new THREE.MeshLambertMaterial({color:skin});
+  const hairM = new THREE.MeshLambertMaterial({color:hair});
+  const eyeM  = new THREE.MeshLambertMaterial({color:0x1a1a1a});
+  const teethM= new THREE.MeshLambertMaterial({color:0xffffff});
+  const lipM  = new THREE.MeshLambertMaterial({color:p.gender==='female'?0xff6688:0xcc6655});
+
+  const g = new THREE.Group();
+  const isFemale = p.gender==='female';
+  const bust = p.bustSize||3;
+  const bodyW = p.bodyShape===1?0.72:p.bodyShape===3?0.92:0.82;
+
+  // ── Torso ──
+  const torsoW = bodyW;
+  const hipW   = isFemale ? torsoW+0.12 : torsoW+0.04;
+  const torso  = new THREE.Mesh(new THREE.BoxGeometry(torsoW,0.9,0.44), skinM);
+  torso.position.set(0,1.05,0);
+  g.add(torso);
+
+  // Hips / pelvis
+  const hips = new THREE.Mesh(new THREE.BoxGeometry(hipW,0.32,0.46), skinM);
+  hips.position.set(0,0.6,0);
+  g.add(hips);
+
+  // ── Female bust ──
+  if(isFemale){
+    const bustR = 0.09+bust*0.028;
+    [-0.16,0.16].forEach(bx=>{
+      const breast = new THREE.Mesh(new THREE.SphereGeometry(bustR,10,8), skinM);
+      breast.position.set(bx, 1.12+bustR*0.2, 0.22);
+      breast.scale.set(1, 0.85, 0.9);
+      breast.name = 'breast';
+      g.add(breast);
+    });
+  }
+
+  // ── Neck ──
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.25,10), skinM);
+  neck.position.set(0,1.6,0);
+  g.add(neck);
+
+  // ── Head ──
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.56,0.46), skinM);
+  head.position.set(0,1.97,0);
+  g.add(head);
+
+  // Eyes
+  [-0.1,0.1].forEach(ex=>{
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.052,8,6), eyeM);
+    eye.position.set(ex,2.0,0.22); g.add(eye);
+  });
+
+  // Nose
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.08,0.08), skinM);
+  nose.position.set(0,1.91,0.25); g.add(nose);
+
+  // Lips
+  const lip = new THREE.Mesh(new THREE.BoxGeometry(0.18,0.04,0.06), lipM);
+  lip.position.set(0,1.81,0.24); g.add(lip);
+
+  // Ears
+  [-0.26,0.26].forEach(ex=>{
+    const ear=new THREE.Mesh(new THREE.SphereGeometry(0.055,6,5), skinM);
+    ear.position.set(ex,1.97,0); g.add(ear);
+  });
+
+  // ── Hair ──
+  if(isFemale){
+    // Long female hair
+    const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.27,10,8), hairM);
+    hairTop.position.set(0,2.2,0); hairTop.scale.set(1,0.7,1); g.add(hairTop);
+    const hairBack= new THREE.Mesh(new THREE.BoxGeometry(0.52,0.9,0.18), hairM);
+    hairBack.position.set(0,1.75,-0.23); g.add(hairBack);
+    const hairSideL= new THREE.Mesh(new THREE.BoxGeometry(0.16,0.7,0.36), hairM);
+    hairSideL.position.set(-0.32,1.82,0.02); g.add(hairSideL);
+    const hairSideR= hairSideL.clone(); hairSideR.position.x=0.32; g.add(hairSideR);
+  } else {
+    const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.27,10,8), hairM);
+    hairTop.position.set(0,2.22,0); hairTop.scale.set(1,0.5,1.05); g.add(hairTop);
+  }
+
+  // ── Eyebrows ──
+  const browM = new THREE.MeshLambertMaterial({color:hair});
+  [-0.1,0.1].forEach(ex=>{
+    const brow=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.025,0.04), browM);
+    brow.position.set(ex,2.08,0.23); g.add(brow);
+  });
+
+  // ── Arms ──
+  [-1,1].forEach(side=>{
+    const shoulderX = side*(torsoW/2+0.09);
+    const upperArm=new THREE.Mesh(new THREE.CylinderGeometry(0.072,0.068,0.48,10), skinM);
+    upperArm.position.set(shoulderX,1.08,0);
+    g.add(upperArm);
+    // Elbow + lower arm
+    const foreArm=new THREE.Mesh(new THREE.CylinderGeometry(0.062,0.055,0.44,10), skinM);
+    foreArm.position.set(shoulderX,0.6,0);
+    g.add(foreArm);
+    // Hand
+    const hand=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.13,0.07), skinM);
+    hand.position.set(shoulderX,0.35,0);
+    g.add(hand);
+  });
+
+  // ── Legs ──
+  const legSep = hipW*0.28;
+  [-1,1].forEach(side=>{
+    const lx=side*legSep;
+    const upper=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.1,0.54,10), skinM);
+    upper.position.set(lx,0.22,0); g.add(upper);
+    const lower=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.075,0.52,10), skinM);
+    lower.position.set(lx,-0.3,0); g.add(lower);
+    // Foot
+    const foot=new THREE.Mesh(new THREE.BoxGeometry(0.16,0.1,0.26), skinM);
+    foot.position.set(lx,-0.59,0.06); g.add(foot);
+  });
+
+  // ── Clothing ──
+  applyClothingToMesh(g, p, isFemale, torsoW, hipW, bust, legSep);
+
+  return g;
+}
+
+function applyClothingToMesh(g, p, isFemale, torsoW, hipW, bust, legSep){
+  const o = p.outfit;
+
+  const mk=(col)=>new THREE.MeshLambertMaterial({color:new THREE.Color(col)});
+
+  // BRA (female)
+  if(isFemale && o.bra.on){
+    const braM=mk(o.bra.color);
+    const bra=new THREE.Mesh(new THREE.BoxGeometry(torsoW+0.04,0.18,0.08), braM);
+    bra.position.set(0,1.08,0.22); g.add(bra);
+    // Cups
+    [-0.14,0.14].forEach(bx=>{
+      const cup=new THREE.Mesh(new THREE.SphereGeometry(0.09+bust*0.025,8,6), braM);
+      cup.position.set(bx,1.1,0.22); cup.scale.set(1,0.75,0.7); g.add(cup);
+    });
+    // Straps
+    [-0.12,0.12].forEach(sx=>{
+      const strap=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.5,0.04), braM);
+      strap.position.set(sx,1.35,0.15); g.add(strap);
+    });
+  }
+
+  // SLIP / UNDERWEAR
+  if(o.slip.on || o.underwear.on){
+    const uKey = o.slip.on?'slip':'underwear';
+    const undM=mk(o[uKey].color);
+    const und=new THREE.Mesh(new THREE.BoxGeometry(hipW+0.06,0.28,0.48), undM);
+    und.position.set(0,0.56,0); g.add(und);
+  }
+
+  // T-SHIRT
+  if(o.tshirt.on){
+    const tM=mk(o.tshirt.color);
+    const shirt=new THREE.Mesh(new THREE.BoxGeometry(torsoW+0.1,0.86,0.5), tM);
+    shirt.position.set(0,1.05,0); g.add(shirt);
+    [-1,1].forEach(side=>{
+      const sleeve=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.08,0.25,8), tM);
+      sleeve.position.set(side*(torsoW/2+0.13),1.15,0); g.add(sleeve);
+    });
+  }
+
+  // TOP
+  if(!o.tshirt.on && o.top.on){
+    const topM=mk(o.top.color);
+    const topMesh=new THREE.Mesh(new THREE.BoxGeometry(torsoW+0.08,0.82,0.5), topM);
+    topMesh.position.set(0,1.05,0);
+    // Cut slightly to show curves
+    g.add(topMesh);
+    // Spaghetti straps
+    [-0.14,0.14].forEach(sx=>{
+      const strap=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.48,0.06), topM);
+      strap.position.set(sx,1.4,0.18); g.add(strap);
+    });
+  }
+
+  // SEXY BIKINI PACK
+  if(o.bikini.on){
+    const bkM=mk(o.bikini.color);
+    // Bikini top (triangle cups)
+    [-0.15,0.15].forEach(bx=>{
+      const cup=new THREE.Mesh(new THREE.SphereGeometry(0.1+bust*0.022,8,6), bkM);
+      cup.position.set(bx,1.12,0.22); cup.scale.set(1,0.72,0.65); g.add(cup);
+    });
+    // Bikini strings
+    const str1=new THREE.Mesh(new THREE.BoxGeometry(torsoW+0.1,0.04,0.04), bkM);
+    str1.position.set(0,1.06,0.2); g.add(str1);
+    // Bikini bottom
+    const bottom=new THREE.Mesh(new THREE.BoxGeometry(hipW+0.04,0.2,0.44), bkM);
+    bottom.position.set(0,0.58,0); g.add(bottom);
+    // Side strings
+    [-1,1].forEach(s=>{
+      const sstr=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.18,0.04), bkM);
+      sstr.position.set(s*(hipW/2+0.02),0.58,0); g.add(sstr);
+    });
+  }
+
+  // SHORTS
+  if(o.shorts.on){
+    const shM=mk(o.shorts.color);
+    const shorts=new THREE.Mesh(new THREE.BoxGeometry(hipW+0.08,0.36,0.5), shM);
+    shorts.position.set(0,0.4,0); g.add(shorts);
+    [-1,1].forEach(side=>{
+      const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.115,0.1,0.2,8), shM);
+      leg.position.set(side*legSep,0.2,0); g.add(leg);
+    });
+  }
+
+  // PANTS / TROUSERS
+  if(!o.shorts.on && o.pants.on){
+    const pM=mk(o.pants.color);
+    const waist=new THREE.Mesh(new THREE.BoxGeometry(hipW+0.08,0.34,0.5), pM);
+    waist.position.set(0,0.4,0); g.add(waist);
+    [-1,1].forEach(side=>{
+      const upper=new THREE.Mesh(new THREE.CylinderGeometry(0.118,0.1,0.52,8), pM);
+      upper.position.set(side*legSep,0.14,0); g.add(upper);
+      const lower=new THREE.Mesh(new THREE.CylinderGeometry(0.097,0.082,0.52,8), pM);
+      lower.position.set(side*legSep,-0.38,0); g.add(lower);
+    });
+  }
+
+  // SHOES
+  if(o.shoes.on){
+    const shoeM=mk(o.shoes.color);
+    [-1,1].forEach(side=>{
+      const shoe=new THREE.Mesh(new THREE.BoxGeometry(0.2,0.12,0.3), shoeM);
+      shoe.position.set(side*legSep,-0.59,0.04); g.add(shoe);
+    });
+  }
+
+  // SOCKS
+  if(o.socks.on){
+    const sockM=mk(o.socks.color);
+    [-1,1].forEach(side=>{
+      const sock=new THREE.Mesh(new THREE.CylinderGeometry(0.087,0.082,0.26,8), sockM);
+      sock.position.set(side*legSep,-0.44,0); g.add(sock);
+    });
+  }
+
+  // COAT / JACKET
+  if(o.coat.on){
+    const cM=mk(o.coat.color);
+    const coat=new THREE.Mesh(new THREE.BoxGeometry(torsoW+0.18,0.92,0.58), cM);
+    coat.position.set(0,1.05,0); g.add(coat);
+    [-1,1].forEach(side=>{
+      const sleeve=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.09,0.52,8), cM);
+      sleeve.position.set(side*(torsoW/2+0.18),0.9,0); g.add(sleeve);
+      const fsleeve=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.08,0.46,8), cM);
+      fsleeve.position.set(side*(torsoW/2+0.18),0.4,0); g.add(fsleeve);
+    });
+  }
+}
+
+// ─── REBUILD CHARACTER (wardrobe changes) ──────────────
+function rebuildCharacter(){
+  if(charMesh){ scene.remove(charMesh); charMesh=null; }
+  buildCharacter();
+}
+
+// ═══════════════════════════════════════════════════════
+//  NPC SYSTEM
+// ═══════════════════════════════════════════════════════
+function buildNPCs(){
+  NPC_DEFS.forEach(def=>{
+    const g=new THREE.Group();
+    const skinM=new THREE.MeshLambertMaterial({color:def.color});
+    const hairM=new THREE.MeshLambertMaterial({color:def.hair});
+    // Simple but clear human shape
+    g.add(box3(0.44,0.55,0.3,skinM,0,0.95,0)); // torso
+    const head=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.4,0.32),skinM);
+    head.position.set(0,1.47,0); g.add(head);
+    g.add(box3(0.38,0.12,0.32,hairM,0,1.66,0)); // hair
+    g.add(box3(0.1,0.52,0.16,skinM,-0.29,0.9,0)); // L arm
+    g.add(box3(0.1,0.52,0.16,skinM, 0.29,0.9,0)); // R arm
+    g.add(box3(0.15,0.58,0.2,skinM,-0.12,0.3,0)); // L leg
+    g.add(box3(0.15,0.58,0.2,skinM, 0.12,0.3,0)); // R leg
+    // Role-specific outfit
+    const roleMat=new THREE.MeshLambertMaterial({color: def.role==='shopkeeper'?0x2244aa:def.role==='teacher'?0x334422:0xdd6622});
+    g.add(box3(0.48,0.56,0.34,roleMat,0,0.94,0));
+    g.position.set(def.x,-0.7,def.z);
+    g.castShadow=true;
+    scene.add(g);
+    npcs.push({mesh:g, def, phase:Math.random()*Math.PI*2, homeX:def.x, homeZ:def.z});
+  });
+}
+
+function buildOnlinePlayerMeshes(){
+  Object.keys(onlinePlayers).forEach(id=>{
+    if(!onlinePlayerMeshes[id]){
+      const g=new THREE.Group();
+      const m=new THREE.MeshLambertMaterial({color:0x55aaff});
+      g.add(box3(0.44,0.55,0.3,m,0,0.95,0));
+      const h=new THREE.Mesh(new THREE.BoxGeometry(0.36,0.4,0.32),m);
+      h.position.set(0,1.47,0); g.add(h);
+      g.position.set(onlinePlayers[id].x||0,-0.7,onlinePlayers[id].z||0);
+      scene.add(g);
+      onlinePlayerMeshes[id]=g;
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  WARDROBE UI
+// ═══════════════════════════════════════════════════════
+const CLOTH_LABELS={
+  bra:'👙 Bra',slip:'🩱 Slip',underwear:'🩲 Underwear',
+  tshirt:'👕 T-Shirt',top:'🎽 Top',bikini:'👙 Sexy Bikini Pack',
+  shorts:'🩳 Shorts',pants:'👖 Pants',shoes:'👟 Shoes',
+  socks:'🧦 Socks',coat:'🧥 Coat / Jacket'
+};
+
+function buildWardrobe(){
+  const container=document.getElementById('wardrobe-content');
+  container.innerHTML='';
+  Object.entries(CLOTH_LABELS).forEach(([key,label])=>{
+    const o=player.outfit[key];
+    const row=document.createElement('div'); row.className='cloth-row';
+    row.innerHTML=`
+      <span>${label}</span>
+      <input type="color" value="${o.color}" id="col-${key}" 
+             onchange="player.outfit['${key}'].color=this.value;rebuildCharacter();"
+             title="Color" style="margin-right:8px;"/>
+      <button class="toggle-btn ${o.on?'on':''}" id="tog-${key}"
+              onclick="toggleCloth('${key}')">
+        ${o.on?'ON':'OFF'}
+      </button>`;
+    container.appendChild(row);
+  });
+}
+
+function toggleCloth(key){
+  player.outfit[key].on=!player.outfit[key].on;
+  document.getElementById('tog-'+key).textContent=player.outfit[key].on?'ON':'OFF';
+  document.getElementById('tog-'+key).classList.toggle('on',player.outfit[key].on);
+  rebuildCharacter();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PANELS & ACTIONS
+// ═══════════════════════════════════════════════════════
+function openPanel(id){ document.getElementById(id).style.display='block'; }
+function closePanel(id){ document.getElementById(id).style.display='none'; }
+
+function doAction(type){
+  closePanel('actions-panel');
+  const msgs={
+    sleep:'😴 Sleeping… Zzzz',
+    eat:'🍔 Nom nom nom… Delicious!',
+    drink:'💧 Refreshing!',
+    smoke:'🚬 *puff* …',
+    alcohol:'🍺 Cheers! *glug glug*',
+    game:'🎮 Loading game… Press ESC to stop',
+    call:'📞 Calling… ring ring…',
+    social:'📸 Posting on social media…',
+    maps:'🗺️ Opening maps…',
+    family:'👨‍👩‍👧 Family started! NPCs spawned.',
+    school:'🏫 Walking to school…',
+    outside:'🌿 Going outside… Enjoy the fresh air!',
+    lockdoor: player.doorLocked?'🔓 Door unlocked!':'🔒 Door locked!'
+  };
+  if(type==='lockdoor') player.doorLocked=!player.doorLocked;
+  if(type==='family') spawnFamilyNPC();
+  showStatus(msgs[type]||'Done!');
+}
+
+function spawnFamilyNPC(){
+  const colors=[0xfddbb4,0xc68642,0xf1c27d];
+  const names=['Spouse','Child 1','Child 2'];
+  player.family.forEach((n,i)=>{});
+  const nm=['Spouse','Baby'];
+  nm.forEach((name,i)=>{
+    const g=new THREE.Group();
+    const m=new THREE.MeshLambertMaterial({color:colors[i%colors.length]});
+    g.add(box3(0.42,0.52,0.28,m,0,0.93,0));
+    const h=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.38,0.3),m);
+    h.position.set(0,1.45,0); g.add(h);
+    g.position.set(player.pos.x+(i+1)*1.5,-0.7,player.pos.z);
+    scene.add(g);
+    npcs.push({mesh:g,def:{id:'family_'+i,name,role:'family',follow:true},phase:0,homeX:g.position.x,homeZ:g.position.z});
+  });
+  player.family.push('spawned');
+}
+
+function openPhone(){ closePanel('actions-panel'); openPanel('phone-panel'); }
+function openTechSetup(){ closePanel('actions-panel'); openPanel('tech-panel'); }
+function openPoolSetup(){ closePanel('actions-panel'); openPanel('pool-panel'); }
+function openRoomSetup(){ closePanel('actions-panel'); openPanel('room-panel'); }
+
+function applyTech(){
+  player.tech.device   = document.getElementById('tech-device').value;
+  player.tech.monitors = parseInt(document.getElementById('tech-monitors').value);
+  player.tech.console  = document.getElementById('tech-console').value;
+  showStatus('🖥️ Tech setup applied: '+player.tech.device+', '+player.tech.monitors+' monitor(s)'+(player.tech.console!=='none'?', '+player.tech.console:''));
+  closePanel('tech-panel');
+}
+
+function applyPool(){
+  const shape=document.getElementById('pool-shape').value;
+  const depth=parseInt(document.getElementById('pool-depth').value)/10;
+  const col  =document.getElementById('pool-color').value;
+  if(poolMesh){ scene.remove(poolMesh); }
+  const poolMat=new THREE.MeshLambertMaterial({color:new THREE.Color(col),transparent:true,opacity:.8});
+  let pg;
+  if(shape==='oval')     pg=new THREE.CylinderGeometry(4,4,depth,32);
+  else if(shape==='lshape'){ pg=new THREE.BoxGeometry(8,depth,5); }
+  else                   pg=new THREE.BoxGeometry(8,depth,5);
+  poolMesh=new THREE.Mesh(pg,poolMat);
+  poolMesh.position.set(player.pos.x+8,-1+depth/2,player.pos.z);
+  scene.add(poolMesh);
+  showStatus('🏊 Pool built! Shape: '+shape+', Depth: '+depth.toFixed(1)+'m');
+  closePanel('pool-panel');
+}
+
+function addRoom(type){
+  const labels={bedroom:'🛏 Bedroom',bathroom:'🚿 Bathroom',gym:'💪 Gym',office:'💻 Office',cinema:'🎬 Cinema',garage:'🚗 Garage'};
+  const colors={bedroom:0xffeedd,bathroom:0xddeeff,gym:0xddffdd,office:0xeeeeff,cinema:0x221122,garage:0x555555};
+  const mat=new THREE.MeshLambertMaterial({color:colors[type]||0xcccccc});
+  const offset=addedRooms.length;
+  const room=box3(6,3,5,mat, -14, 0.5, -6+offset*6);
+  scene.add(room);
+  addedRooms.push({type,mesh:room});
+  showStatus(labels[type]+' added to your house!');
+  closePanel('room-panel');
+}
+
+// ═══════════════════════════════════════════════════════
+//  DIALOGUE / CHAT
+// ═══════════════════════════════════════════════════════
+function openDialogue(npc){
+  const lines=NPC_LINES[npc.def.id]||['Hello!'];
+  document.getElementById('dlg-name').textContent=npc.def.name+' ('+npc.def.role+')';
+  document.getElementById('dlg-text').textContent=lines[Math.floor(Math.random()*lines.length)];
+  document.getElementById('dialogue').style.display='block';
+}
+function closeDialogue(){ document.getElementById('dialogue').style.display='none'; }
+
+function toggleChat(){
+  const box=document.getElementById('chat-box');
+  box.style.display=box.style.display==='flex'?'none':'flex';
+  if(box.style.display==='flex') document.getElementById('chat-input').focus();
+  closePanel('phone-panel');
+}
+
+function addChatMsg(msg,color='#eee'){
+  const el=document.getElementById('chat-msgs');
+  const div=document.createElement('div');
+  div.style.color=color; div.textContent=msg;
+  el.appendChild(div); el.scrollTop=el.scrollHeight;
+}
+
+function sendChatMsg(){
+  const inp=document.getElementById('chat-input');
+  const msg=inp.value.trim();
+  if(!msg) return;
+  addChatMsg('You: '+msg,'#7cf');
+  inp.value='';
+  if(ws && ws.readyState===1){
+    ws.send(JSON.stringify({type:'chat',id:myId,name:player.name,msg}));
+  } else {
+    // Bot reply
+    const replies=['Cool!','Haha nice!','What are you up to?','Let\'s hang out!','Sounds fun!'];
+    setTimeout(()=>addChatMsg('Alex: '+replies[Math.floor(Math.random()*replies.length)],'#aaa'),600);
+  }
+}
+document.getElementById('chat-send').onclick=sendChatMsg;
+document.getElementById('chat-input').onkeydown=e=>{ if(e.key==='Enter') sendChatMsg(); e.stopPropagation(); };
+
+// ═══════════════════════════════════════════════════════
+//  POINTER LOCK & INPUT
+// ═══════════════════════════════════════════════════════
+function requestPointerLock(){ canvas.requestPointerLock(); }
+document.addEventListener('pointerlockchange',()=>{
+  mouseLocked=document.pointerLockElement===canvas;
+});
+canvas.addEventListener('click',()=>{ if(!mouseLocked) canvas.requestPointerLock(); });
+document.addEventListener('mousemove',e=>{
+  if(!mouseLocked) return;
+  player.yaw   -= e.movementX * 0.002;
+  player.pitch  = Math.max(-1.2, Math.min(1.2, player.pitch - e.movementY*0.002));
+});
+
+function onKey(e){
+  // Panels
+  if(e.code==='Slash')         { togglePanel('actions-panel'); e.preventDefault(); }
+  if(e.code==='KeyE')          { tryOpenWardrobe(); }
+  if(e.code==='KeyF')          { tryTalkNPC(); }
+  if(e.code==='KeyC')          { toggleCar(); }
+  if(e.code==='KeyT')          { toggleChat(); }
+  if(e.code==='BracketRight')  { mouseLocked?document.exitPointerLock():canvas.requestPointerLock(); e.preventDefault(); }
+  if(e.code==='Digit1')        { camMode=1; document.getElementById('cammode').textContent='📷 1st Person'; }
+  if(e.code==='Digit2')        { camMode=2; document.getElementById('cammode').textContent='📷 2nd Person'; }
+  if(e.code==='Digit3')        { camMode=3; document.getElementById('cammode').textContent='📷 3rd Person'; }
+  if(e.code==='Escape')        { closeAllPanels(); }
+}
+
+function togglePanel(id){
+  const p=document.getElementById(id);
+  p.style.display=p.style.display==='block'?'none':'block';
+}
+function closeAllPanels(){
+  ['actions-panel','wardrobe-panel','shop-panel','phone-panel','tech-panel','pool-panel','room-panel'].forEach(id=>{
+    document.getElementById(id).style.display='none';
+  });
+  closeDialogue();
+}
+
+function tryOpenWardrobe(){
+  const dist=player.pos.distanceTo(wardrobePos);
+  if(dist<3){ openPanel('wardrobe-panel'); showStatus('👗 Wardrobe opened'); }
+  else { showStatus('Walk closer to the wardrobe first!'); }
+}
+
+function tryTalkNPC(){
+  let best=null, bd=4;
+  npcs.forEach(npc=>{
+    const d=player.pos.distanceTo(npc.mesh.position);
+    if(d<bd){ bd=d; best=npc; }
+  });
+  if(best) openDialogue(best);
+  else showStatus('No one nearby to talk to');
+}
+
+function toggleCar(){
+  if(!carMesh) return;
+  const distToCar=player.pos.distanceTo(carMesh.position);
+  if(!carDriving && distToCar<4){
+    carDriving=true;
+    showStatus('🚗 Driving! WASD to drive');
+  } else if(carDriving){
+    carDriving=false;
+    player.pos.copy(carMesh.position).add(new THREE.Vector3(2,0,0));
+    showStatus('🚗 Exited car');
+  } else {
+    showStatus('Walk closer to the car first!');
+  }
+}
+
+function tryOpenShop(){
+  const dist=player.pos.distanceTo(shopPos);
+  if(dist<6){ openPanel('shop-panel'); buildShopContent(); showStatus('🛒 Shop opened!'); }
+}
+
+function buildShopContent(){
+  const items=[
+    {n:'🍕 Pizza',p:'Free'},{n:'💊 Medicine',p:'Free'},{n:'🔑 House Key',p:'Free'},
+    {n:'🎮 Video Game',p:'Free'},{n:'👗 New Outfit',p:'Free'},{n:'🚗 Car Upgrade',p:'Free'},
+    {n:'📱 New Phone',p:'Free'},{n:'🖥️ Gaming PC',p:'Free'},{n:'🏊 Pool Kit',p:'Free'}
+  ];
+  document.getElementById('shop-content').innerHTML=items.map(i=>
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 2px;border-bottom:1px solid #222;">
+       <span style="font-size:14px;">${i.n}</span>
+       <button class="btn-sm" onclick="showStatus('✅ Bought ${i.n}!')">Buy (${i.p})</button>
+     </div>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  MOVEMENT & PHYSICS
+// ═══════════════════════════════════════════════════════
+function updateMovement(dt){
+  if(carDriving){ updateCar(dt); return; }
+
+  const speed  = keys['ShiftLeft']||keys['ShiftRight'] ? 8 : 4;
+  const dir    = new THREE.Vector3();
+  const forward= new THREE.Vector3(-Math.sin(player.yaw),0,-Math.cos(player.yaw));
+  const right  = new THREE.Vector3(Math.cos(player.yaw),0,-Math.sin(player.yaw));
+
+  if(keys['KeyW']||keys['ArrowUp'])   dir.addScaledVector(forward, speed);
+  if(keys['KeyS']||keys['ArrowDown']) dir.addScaledVector(forward,-speed);
+  if(keys['KeyA']||keys['ArrowLeft']) dir.addScaledVector(right,  -speed);
+  if(keys['KeyD']||keys['ArrowRight'])dir.addScaledVector(right,   speed);
+
+  if((keys['Space'])&&player.onGround){
+    player.vel.y=6;
+    player.onGround=false;
+  }
+
+  player.vel.y -= 14*dt;
+  player.pos.x += dir.x*dt;
+  player.pos.z += dir.z*dt;
+  player.pos.y += player.vel.y*dt;
+
+  if(player.pos.y<=-0.7){ player.pos.y=-0.7; player.vel.y=0; player.onGround=true; }
+
+  // Boundary
+  player.pos.x=Math.max(-60,Math.min(80,player.pos.x));
+  player.pos.z=Math.max(-60,Math.min(80,player.pos.z));
+
+  if(charMesh){
+    charMesh.position.copy(player.pos);
+    charMesh.rotation.y=player.yaw;
+  }
+
+  // Check shop proximity
+  if(player.pos.distanceTo(shopPos)<5 && !document.getElementById('shop-panel').style.display.includes('block')){
+    showPrompt('Press E to enter shop');
+  } else if(player.pos.distanceTo(wardrobePos)<3){
+    showPrompt('Press E to open wardrobe');
+  } else {
+    hidePrompt();
+  }
+
+  // E near shop
+  if(keys['KeyE'] && player.pos.distanceTo(shopPos)<5){
+    keys['KeyE']=false;
+    tryOpenShop();
+  }
+
+  // WS position broadcast
+  if(ws && ws.readyState===1){
+    ws.send(JSON.stringify({type:'move',id:myId,x:player.pos.x,z:player.pos.z}));
+  }
+}
+
+function updateCar(dt){
+  const speed=keys['ShiftLeft']?14:8;
+  const turn=0.04;
+  if(keys['KeyA']||keys['ArrowLeft'])  carMesh.rotation.y+=turn;
+  if(keys['KeyD']||keys['ArrowRight']) carMesh.rotation.y-=turn;
+  const fwd=new THREE.Vector3(-Math.sin(carMesh.rotation.y),0,-Math.cos(carMesh.rotation.y));
+  if(keys['KeyW']||keys['ArrowUp'])   carMesh.position.addScaledVector(fwd, speed*dt);
+  if(keys['KeyS']||keys['ArrowDown']) carMesh.position.addScaledVector(fwd,-speed*dt);
+  player.pos.copy(carMesh.position);
+  player.yaw=carMesh.rotation.y;
+}
+
+// ─── NPC MOVEMENT ──────────────────────────────────────
+function updateNPCs(dt){
+  npcs.forEach(npc=>{
+    npc.phase+=dt;
+    if(npc.def.follow && npc.def.role!=='family'){
+      // Follow player (Alex, family)
+      const dx=player.pos.x-npc.mesh.position.x;
+      const dz=player.pos.z-npc.mesh.position.z;
+      const dist=Math.sqrt(dx*dx+dz*dz);
+      if(dist>2.5){
+        npc.mesh.position.x+=dx/dist*2*dt;
+        npc.mesh.position.z+=dz/dist*2*dt;
+      }
+      npc.mesh.rotation.y=Math.atan2(dx,dz);
+    } else {
+      // Patrol
+      npc.mesh.position.x=npc.homeX+Math.sin(npc.phase*0.4)*3;
+      npc.mesh.position.z=npc.homeZ+Math.cos(npc.phase*0.3)*2;
+    }
+    // Leg bob
+    npc.mesh.position.y=-0.7+Math.abs(Math.sin(npc.phase*3))*0.04;
+  });
+  // Online player meshes
+  Object.keys(onlinePlayers).forEach(id=>{
+    if(!onlinePlayerMeshes[id]) buildOnlinePlayerMeshes();
+    if(onlinePlayerMeshes[id]){
+      const op=onlinePlayers[id];
+      onlinePlayerMeshes[id].position.x += (op.x - onlinePlayerMeshes[id].position.x)*0.1;
+      onlinePlayerMeshes[id].position.z += (op.z - onlinePlayerMeshes[id].position.z)*0.1;
+    }
+  });
+}
+
+// ─── BUST PHYSICS ──────────────────────────────────────
+let bustPhase=0;
+function updateBustPhysics(dt){
+  if(player.gender!=='female'||!charMesh) return;
+  bustPhase+=dt*4;
+  const bobY  = Math.sin(bustPhase)*0.018;
+  const swayX = Math.sin(bustPhase*0.7)*0.008;
+  charMesh.traverse(child=>{
+    if(child.name==='breast'){
+      child.position.y += (bobY - child._lastBobY||0);
+      child._lastBobY=bobY;
+      child.position.x = (child.position.x>0?1:-1)*(0.16+swayX);
+    }
+  });
+}
+
+// ─── CAMERA ────────────────────────────────────────────
+function updateCamera(){
+  const pos=player.pos.clone();
+  if(camMode===1){
+    // First person — eyes position
+    camera.position.set(pos.x,pos.y+1.65,pos.z);
+    const look=new THREE.Vector3(
+      camera.position.x - Math.sin(player.yaw)*Math.cos(player.pitch),
+      camera.position.y + Math.sin(player.pitch),
+      camera.position.z - Math.cos(player.yaw)*Math.cos(player.pitch)
+    );
+    camera.lookAt(look);
+    if(charMesh) charMesh.visible=false;
+  } else if(camMode===2){
+    // Second person — over shoulder
+    camera.position.set(
+      pos.x+Math.sin(player.yaw)*3,
+      pos.y+2.2,
+      pos.z+Math.cos(player.yaw)*3
+    );
+    camera.lookAt(pos.x, pos.y+1, pos.z);
+    if(charMesh) charMesh.visible=true;
+  } else {
+    // Third person
+    const dist=5, height=2.8;
+    camera.position.set(
+      pos.x+Math.sin(player.yaw)*dist,
+      pos.y+height,
+      pos.z+Math.cos(player.yaw)*dist
+    );
+    camera.lookAt(pos.x, pos.y+1, pos.z);
+    if(charMesh) charMesh.visible=true;
+  }
+}
+
+// ─── MINIMAP ───────────────────────────────────────────
+function updateMinimap(){
+  const mc=document.getElementById('mm');
+  const ctx=mc.getContext('2d');
+  const W=120,H=120,scale=1.2;
+  ctx.fillStyle='rgba(0,0,0,.6)'; ctx.fillRect(0,0,W,H);
+  const cx=W/2-player.pos.x*scale, cy=H/2-player.pos.z*scale;
+  // Player
+  ctx.fillStyle='#ffd400';
+  ctx.beginPath(); ctx.arc(W/2,H/2,4,0,Math.PI*2); ctx.fill();
+  // NPCs
+  npcs.forEach(npc=>{
+    ctx.fillStyle='#55aaff';
+    ctx.beginPath();
+    ctx.arc(W/2+(npc.mesh.position.x-player.pos.x)*scale, H/2+(npc.mesh.position.z-player.pos.z)*scale,3,0,Math.PI*2);
+    ctx.fill();
+  });
+  // Online
+  Object.values(onlinePlayers).forEach(op=>{
+    ctx.fillStyle='#8de5a1';
+    ctx.beginPath();
+    ctx.arc(W/2+(op.x-player.pos.x)*scale, H/2+(op.z-player.pos.z)*scale,3,0,Math.PI*2);
+    ctx.fill();
+  });
+  // House dot
+  ctx.fillStyle='#ff8844';
+  ctx.beginPath(); ctx.arc(W/2+(-6-player.pos.x)*scale, H/2+(-6-player.pos.z)*scale,5,0,Math.PI*2); ctx.fill();
+}
+
+// ─── STATUS / PROMPT ───────────────────────────────────
+let _statusTimer=null;
+function showStatus(msg){
+  const el=document.getElementById('status');
+  el.textContent=msg; el.style.display='block';
+  clearTimeout(_statusTimer);
+  _statusTimer=setTimeout(()=>el.style.display='none',3200);
+}
+function showPrompt(msg){ const e=document.getElementById('prompt'); e.textContent=msg; e.style.display='block'; }
+function hidePrompt()   { document.getElementById('prompt').style.display='none'; }
+
+// ─── HELPER ────────────────────────────────────────────
+function box3(w,h,d,mat,x,y,z){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+  m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true;
+  return m;
+}
+
+// ─── RESIZE ────────────────────────────────────────────
+window.addEventListener('resize',()=>{
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+// ═══════════════════════════════════════════════════════
+//  MAIN LOOP
+// ═══════════════════════════════════════════════════════
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(clock.getDelta(),0.05);
+  updateMovement(dt);
+  updateNPCs(dt);
+  updateBustPhysics(dt);
+  updateCamera();
+  updateMinimap();
+  renderer.render(scene,camera);
+}
+</script>
+</body>
+</html>
